@@ -22,7 +22,9 @@ yarn-error.log*
 .agents/
 .claude/
 .windsurf/
+skills-lock.json
 
 # OS files
 .DS_Store
 Thumbs.db
+
