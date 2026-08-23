@@ -1,0 +1,285 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id        BigInt   @id @default(autoincrement())
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  departments Department[]
+  offices     Office[]
+  employees   Employee[]
+  shifts      Shift[]
+
+  @@map("companies")
+}
+
+model Department {
+  id          BigInt   @id @default(autoincrement())
+  companyId   BigInt   @map("company_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+
+  @@unique([companyId, name])
+  @@map("departments")
+}
+
+model Office {
+  id                  BigInt   @id @default(autoincrement())
+  companyId           BigInt   @map("company_id")
+  name                String
+  address             String?
+  latitude            Decimal? @db.Decimal(10, 7)
+  longitude           Decimal? @db.Decimal(10, 7)
+  allowedRadiusMeters Int      @default(150) @map("allowed_radius_meters")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+  schedules Schedule[]
+
+  @@map("offices")
+}
+
+model Employee {
+  id             BigInt    @id @default(autoincrement())
+  companyId      BigInt    @map("company_id")
+  departmentId   BigInt    @map("department_id")
+  officeId       BigInt    @map("office_id")
+  employeeNumber String    @unique @map("employee_number")
+  firstName      String    @map("first_name")
+  lastName       String?   @map("last_name")
+  email          String    @unique
+  phone          String?
+  position       String?
+  workType       String?   @map("work_type")
+  joinDate       DateTime? @map("join_date") @db.Date
+  status         String    @default("active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  company    Company    @relation(fields: [companyId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
+  office     Office     @relation(fields: [officeId], references: [id])
+
+  user          User?
+  schedules     Schedule[]
+  requests      Request[]
+  payslips      Payslip[]
+  notifications Notification[]
+
+  @@map("employees")
+}
+
+model User {
+  id               BigInt    @id @default(autoincrement())
+  employeeId       BigInt?   @unique @map("employee_id")
+  email            String    @unique
+  passwordHash     String    @map("password_hash")
+  isActive         Boolean   @default(true) @map("is_active")
+  lastLoginAt      DateTime? @map("last_login_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  reviewedRequests Request[] @relation("RequestReviewer")
+
+  employee Employee?  @relation(fields: [employeeId], references: [id])
+  roles    UserRole[]
+
+  @@map("users")
+}
+
+model Role {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId BigInt @map("user_id")
+  roleId BigInt @map("role_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       BigInt @map("role_id")
+  permissionId BigInt @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Shift {
+  id         BigInt    @id @default(autoincrement())
+  companyId  BigInt    @map("company_id")
+  name       String
+  startTime  DateTime  @map("start_time") @db.Time
+  endTime    DateTime  @map("end_time") @db.Time
+  breakStart DateTime? @map("break_start") @db.Time
+  breakEnd   DateTime? @map("break_end") @db.Time
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  schedules Schedule[]
+
+  @@unique([companyId, name])
+  @@map("shifts")
+}
+
+model Schedule {
+  id         BigInt   @id @default(autoincrement())
+  employeeId BigInt   @map("employee_id")
+  shiftId    BigInt   @map("shift_id")
+  officeId   BigInt   @map("office_id")
+  workDate   DateTime @map("work_date") @db.Date
+  status     String   @default("scheduled")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  shift    Shift    @relation(fields: [shiftId], references: [id])
+  office   Office   @relation(fields: [officeId], references: [id])
+
+  attendance Attendance?
+
+  @@unique([employeeId, workDate])
+  @@map("schedules")
+}
+
+model Attendance {
+  id         BigInt    @id @default(autoincrement())
+  scheduleId BigInt    @unique @map("schedule_id")
+  checkInAt  DateTime? @map("check_in_at")
+  checkOutAt DateTime? @map("check_out_at")
+  status     String    @default("present")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@map("attendances")
+}
+
+model Request {
+  id         BigInt  @id @default(autoincrement())
+  employeeId BigInt  @map("employee_id")
+  reviewedBy BigInt? @map("reviewed_by")
+
+  type      String
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  reason    String
+  status    String   @default("pending")
+
+  submittedAt DateTime  @default(now()) @map("submitted_at")
+  reviewedAt  DateTime? @map("reviewed_at")
+  reviewNote  String?   @map("review_note")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  reviewer User?    @relation("RequestReviewer", fields: [reviewedBy], references: [id])
+
+  attachments RequestAttachment[]
+
+  @@map("requests")
+}
+
+model RequestAttachment {
+  id        BigInt @id @default(autoincrement())
+  requestId BigInt @map("request_id")
+
+  fileName String  @map("file_name")
+  fileUrl  String  @map("file_url")
+  fileType String? @map("file_type")
+  fileSize BigInt? @map("file_size")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_attachments")
+}
+
+model Payslip {
+  id         BigInt @id @default(autoincrement())
+  employeeId BigInt @map("employee_id")
+
+  periodMonth Int @map("period_month")
+  periodYear  Int @map("period_year")
+
+  basicSalary    Decimal @map("basic_salary") @db.Decimal(14, 2)
+  totalIncome    Decimal @map("total_income") @db.Decimal(14, 2)
+  totalDeduction Decimal @map("total_deduction") @db.Decimal(14, 2)
+  takeHomePay    Decimal @map("take_home_pay") @db.Decimal(14, 2)
+
+  status String @default("draft")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, periodMonth, periodYear])
+  @@map("payslips")
+}
+
+model Notification {
+  id         BigInt @id @default(autoincrement())
+  employeeId BigInt @map("employee_id")
+
+  title   String
+  message String
+  type    String?
+
+  isRead Boolean   @default(false) @map("is_read")
+  readAt DateTime? @map("read_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("notifications")
+}
