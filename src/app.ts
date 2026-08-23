@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import prisma from "./config/prisma.js";
 
 dotenv.config();
 
@@ -15,6 +16,24 @@ app.get("/api/health", (req, res) => {
     success: true,
     message: "SynTime API is running",
   });
+});
+
+app.get("/api/health/db", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.status(200).json({
+      success: true,
+      message: "Database connection is healthy",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Database connection failed",
+    });
+  }
 });
 
 app.listen(PORT, () => {
