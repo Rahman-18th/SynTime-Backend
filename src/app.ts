@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import prisma from "./config/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
 
+
 dotenv.config();
 
 const app = express();
