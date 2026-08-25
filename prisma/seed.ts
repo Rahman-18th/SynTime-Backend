@@ -13,6 +13,70 @@ if (!connectionString) {
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
+const company = await prisma.company.upsert({
+  where: {
+    id: BigInt(1),
+  },
+  update: {},
+  create: {
+    name: "PT SynTime Demo",
+    address: "Jakarta",
+    email: "contact@syntime.local",
+  },
+});
+
+const itDepartment = await prisma.department.upsert({
+  where: {
+    companyId_name: {
+      companyId: company.id,
+      name: "IT",
+    },
+  },
+  update: {},
+  create: {
+    companyId: company.id,
+    name: "IT",
+    description: "Information Technology Department",
+  },
+});
+
+const hrDepartment = await prisma.department.upsert({
+  where: {
+    companyId_name: {
+      companyId: company.id,
+      name: "HR",
+    },
+  },
+  update: {},
+  create: {
+    companyId: company.id,
+    name: "HR",
+    description: "Human Resources Department",
+  },
+});
+
+
+let office = await prisma.office.findFirst({
+  where: {
+    companyId: company.id,
+    name: "Head Office",
+  },
+});
+
+if (!office) {
+  office = await prisma.office.create({
+    data: {
+      companyId: company.id,
+      name: "Head Office",
+      address: "Jakarta",
+      latitude: -6.2000000,
+      longitude: 106.8166667,
+      allowedRadiusMeters: 150,
+    },
+  });
+}
+
+
 async function main() {
   const adminRole = await prisma.role.upsert({
     where: {
@@ -26,6 +90,9 @@ async function main() {
   });
 
   const passwordHash = await bcrypt.hash("Admin123!", 12);
+
+
+  
 
   const adminUser = await prisma.user.upsert({
     where: {
@@ -68,3 +135,10 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+
+console.log("Organization seeded");
+console.log("Company ID:", company.id.toString());
+console.log("IT Department ID:", itDepartment.id.toString());
+console.log("HR Department ID:", hrDepartment.id.toString());
+console.log("Office ID:", office.id.toString());

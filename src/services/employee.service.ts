@@ -1,0 +1,138 @@
+import prisma from "../config/prisma.js";
+
+export async function getAllEmployees() {
+  return prisma.employee.findMany({
+    include: {
+      company: true,
+      department: true,
+      office: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
+export async function getEmployeeById(id: bigint) {
+  return prisma.employee.findUnique({
+    where: { id },
+    include: {
+      company: true,
+      department: true,
+      office: true,
+      user: true,
+      schedules: true,
+    },
+  });
+}
+
+export async function createEmployee(data: {
+  companyId: bigint;
+  departmentId: bigint;
+  officeId: bigint;
+  employeeNumber: string;
+  firstName: string;
+  lastName?: string;
+  email: string;
+  phone?: string;
+  position?: string;
+  workType?: string;
+  joinDate?: Date;
+}) {
+  return prisma.employee.create({
+    data: {
+      companyId: data.companyId,
+      departmentId: data.departmentId,
+      officeId: data.officeId,
+      employeeNumber: data.employeeNumber,
+      firstName: data.firstName,
+      email: data.email,
+
+      ...(data.lastName !== undefined && {
+        lastName: data.lastName,
+      }),
+
+      ...(data.phone !== undefined && {
+        phone: data.phone,
+      }),
+
+      ...(data.position !== undefined && {
+        position: data.position,
+      }),
+
+      ...(data.workType !== undefined && {
+        workType: data.workType,
+      }),
+
+      ...(data.joinDate !== undefined && {
+        joinDate: data.joinDate,
+      }),
+    },
+  });
+}
+
+export async function updateEmployee(
+  id: bigint,
+  data: {
+    departmentId?: bigint;
+    officeId?: bigint;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    position?: string;
+    workType?: string;
+    joinDate?: Date;
+  }
+) {
+  return prisma.employee.update({
+    where: { id },
+    data: {
+      ...(data.departmentId !== undefined && {
+        departmentId: data.departmentId,
+      }),
+
+      ...(data.officeId !== undefined && {
+        officeId: data.officeId,
+      }),
+
+      ...(data.firstName !== undefined && {
+        firstName: data.firstName,
+      }),
+
+      ...(data.lastName !== undefined && {
+        lastName: data.lastName,
+      }),
+
+      ...(data.email !== undefined && {
+        email: data.email,
+      }),
+
+      ...(data.phone !== undefined && {
+        phone: data.phone,
+      }),
+
+      ...(data.position !== undefined && {
+        position: data.position,
+      }),
+
+      ...(data.workType !== undefined && {
+        workType: data.workType,
+      }),
+
+      ...(data.joinDate !== undefined && {
+        joinDate: data.joinDate,
+      }),
+    },
+  });
+}
+
+export async function updateEmployeeStatus(
+  id: bigint,
+  status: string
+) {
+  return prisma.employee.update({
+    where: { id },
+    data: { status },
+  });
+}
