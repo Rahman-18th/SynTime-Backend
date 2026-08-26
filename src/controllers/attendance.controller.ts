@@ -1,5 +1,9 @@
 import type { Request, Response } from "express";
-import { calculateDistanceMeters } from "../utils/distance.js";
+import { calculateDistanceMeters, } from "../utils/distance.js";
+import {
+  determineAttendanceStatus,
+  isScheduleToday,
+} from "../utils/attendance-time.js";
 
 import {
   clockInAttendance,
@@ -158,6 +162,14 @@ export async function clockIn(
       });
     }
 
+    if (!isScheduleToday(schedule.workDate)) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Clock in is only allowed on the scheduled work date",
+  });
+}
+
     if (
       schedule.office.latitude === null ||
       schedule.office.longitude === null
@@ -245,24 +257,30 @@ export async function clockIn(
       });
     }
 
-    const now = new Date();
+   const now = new Date();
 
-    const attendance =
-      await clockInAttendance({
-        scheduleId: parsedScheduleId,
-        checkInAt: now,
-        status: "present",
+const attendanceStatus =
+  determineAttendanceStatus(
+    now,
+    schedule.workDate,
+    schedule.shift.startTime
+  );
 
-        checkInLatitude:
-          employeeLatitude,
+const attendance =
+  await clockInAttendance({
+    scheduleId: parsedScheduleId,
+    checkInAt: now,
+    status: attendanceStatus,
 
-        checkInLongitude:
-          employeeLongitude,
+    checkInLatitude:
+      employeeLatitude,
 
-        checkInDistanceMeters:
-          distanceMeters,
-      });
+    checkInLongitude:
+      employeeLongitude,
 
+    checkInDistanceMeters:
+      distanceMeters,
+  });
     return res.status(201).json({
       success: true,
       message: "Clock in successful",
