@@ -36,24 +36,47 @@ export async function clockInAttendance(data: {
   scheduleId: bigint;
   checkInAt: Date;
   status: string;
+
+  checkInLatitude: number;
+  checkInLongitude: number;
+  checkInDistanceMeters: number;
 }) {
   return prisma.attendance.create({
     data: {
       scheduleId: data.scheduleId,
       checkInAt: data.checkInAt,
       status: data.status,
+
+      checkInLatitude: data.checkInLatitude,
+      checkInLongitude: data.checkInLongitude,
+      checkInDistanceMeters:
+        data.checkInDistanceMeters,
     },
   });
 }
 
 export async function clockOutAttendance(
   id: bigint,
-  checkOutAt: Date
+  data: {
+    checkOutAt: Date;
+    checkOutLatitude: number;
+    checkOutLongitude: number;
+    checkOutDistanceMeters: number;
+  }
 ) {
   return prisma.attendance.update({
     where: { id },
     data: {
-      checkOutAt,
+      checkOutAt: data.checkOutAt,
+
+      checkOutLatitude:
+        data.checkOutLatitude,
+
+      checkOutLongitude:
+        data.checkOutLongitude,
+
+      checkOutDistanceMeters:
+        data.checkOutDistanceMeters,
     },
   });
 }

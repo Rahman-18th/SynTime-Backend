@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { calculateDistanceMeters } from "../utils/distance.js";
 
 import {
   clockInAttendance,
@@ -116,12 +117,21 @@ export async function clockIn(
       });
     }
 
-    const { scheduleId } = req.body;
+    const {
+      scheduleId,
+      latitude,
+      longitude,
+    } = req.body;
 
-    if (!scheduleId) {
+    if (
+      !scheduleId ||
+      latitude === undefined ||
+      longitude === undefined
+    ) {
       return res.status(400).json({
         success: false,
-        message: "scheduleId is required",
+        message:
+          "scheduleId, latitude and longitude are required",
       });
     }
 
@@ -148,6 +158,17 @@ export async function clockIn(
       });
     }
 
+    if (
+      schedule.office.latitude === null ||
+      schedule.office.longitude === null
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Office location is not configured",
+      });
+    }
+
     const existingAttendance =
       await getAttendanceBySchedule(
         parsedScheduleId
@@ -161,18 +182,85 @@ export async function clockIn(
       });
     }
 
+    const employeeLatitude =
+      Number(latitude);
+
+    const employeeLongitude =
+      Number(longitude);
+
+    if (
+      Number.isNaN(employeeLatitude) ||
+      Number.isNaN(employeeLongitude)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Latitude and longitude must be valid numbers",
+      });
+    }
+
+    if (
+      employeeLatitude < -90 ||
+      employeeLatitude > 90 ||
+      employeeLongitude < -180 ||
+      employeeLongitude > 180
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Latitude or longitude is out of range",
+      });
+    }
+
+    const officeLatitude =
+      Number(schedule.office.latitude);
+
+    const officeLongitude =
+      Number(schedule.office.longitude);
+
+    const distanceMeters =
+      calculateDistanceMeters(
+        employeeLatitude,
+        employeeLongitude,
+        officeLatitude,
+        officeLongitude
+      );
+
+    const allowedRadius =
+      schedule.office.allowedRadiusMeters;
+
+    if (distanceMeters > allowedRadius) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You are outside the allowed office radius",
+        data: {
+          distanceMeters:
+            Math.round(distanceMeters * 100) /
+            100,
+
+          allowedRadiusMeters:
+            allowedRadius,
+        },
+      });
+    }
+
     const now = new Date();
 
-    /*
-     * Untuk sementara status kita set present.
-     * Nanti kita upgrade supaya backend
-     * menentukan present / late berdasarkan shift.
-     */
     const attendance =
       await clockInAttendance({
         scheduleId: parsedScheduleId,
         checkInAt: now,
         status: "present",
+
+        checkInLatitude:
+          employeeLatitude,
+
+        checkInLongitude:
+          employeeLongitude,
+
+        checkInDistanceMeters:
+          distanceMeters,
       });
 
     return res.status(201).json({
@@ -196,6 +284,32 @@ export async function clockOut(
 ) {
   try {
     const id = parseId(req.params.id);
+
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Request body is required",
+      });
+    }
+
+    const {
+      latitude,
+      longitude,
+    } = req.body;
+
+    if (
+      latitude === undefined ||
+      longitude === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "latitude and longitude are required",
+      });
+    }
 
     const attendance =
       await getAttendanceById(id);
@@ -223,11 +337,96 @@ export async function clockOut(
       });
     }
 
-    const updatedAttendance =
-      await clockOutAttendance(
-        id,
-        new Date()
+    const employeeLatitude =
+      Number(latitude);
+
+    const employeeLongitude =
+      Number(longitude);
+
+    if (
+      Number.isNaN(employeeLatitude) ||
+      Number.isNaN(employeeLongitude)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Latitude and longitude must be valid numbers",
+      });
+    }
+
+    if (
+      employeeLatitude < -90 ||
+      employeeLatitude > 90 ||
+      employeeLongitude < -180 ||
+      employeeLongitude > 180
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Latitude or longitude is out of range",
+      });
+    }
+
+    const office =
+      attendance.schedule.office;
+
+    if (
+      office.latitude === null ||
+      office.longitude === null
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Office location is not configured",
+      });
+    }
+
+    const officeLatitude =
+      Number(office.latitude);
+
+    const officeLongitude =
+      Number(office.longitude);
+
+    const distanceMeters =
+      calculateDistanceMeters(
+        employeeLatitude,
+        employeeLongitude,
+        officeLatitude,
+        officeLongitude
       );
+
+    const allowedRadius =
+      office.allowedRadiusMeters;
+
+    if (distanceMeters > allowedRadius) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You are outside the allowed office radius",
+        data: {
+          distanceMeters:
+            Math.round(distanceMeters * 100) /
+            100,
+
+          allowedRadiusMeters:
+            allowedRadius,
+        },
+      });
+    }
+
+    const updatedAttendance =
+      await clockOutAttendance(id, {
+        checkOutAt: new Date(),
+
+        checkOutLatitude:
+          employeeLatitude,
+
+        checkOutLongitude:
+          employeeLongitude,
+
+        checkOutDistanceMeters:
+          distanceMeters,
+      });
 
     return res.status(200).json({
       success: true,

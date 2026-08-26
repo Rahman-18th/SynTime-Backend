@@ -188,13 +188,25 @@ model Schedule {
 }
 
 model Attendance {
-  id         BigInt    @id @default(autoincrement())
-  scheduleId BigInt    @unique @map("schedule_id")
+  id         BigInt   @id @default(autoincrement())
+  scheduleId BigInt   @unique @map("schedule_id")
+
   checkInAt  DateTime? @map("check_in_at")
   checkOutAt DateTime? @map("check_out_at")
-  status     String    @default("present")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  checkInLatitude  Decimal? @db.Decimal(10, 7) @map("check_in_latitude")
+  checkInLongitude Decimal? @db.Decimal(10, 7) @map("check_in_longitude")
+
+  checkOutLatitude  Decimal? @db.Decimal(10, 7) @map("check_out_latitude")
+  checkOutLongitude Decimal? @db.Decimal(10, 7) @map("check_out_longitude")
+
+  checkInDistanceMeters  Decimal? @db.Decimal(10, 2) @map("check_in_distance_meters")
+  checkOutDistanceMeters Decimal? @db.Decimal(10, 2) @map("check_out_distance_meters")
+
+  status String @default("present")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   schedule Schedule @relation(fields: [scheduleId], references: [id])
 
