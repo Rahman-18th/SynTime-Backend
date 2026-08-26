@@ -20,6 +20,11 @@ import {
   createNotification,
 } from "../services/notification.service.js";
 
+import {
+  createRequestAttachment,
+  getAttachmentsByRequest,
+} from "../services/request-attachment.service.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -405,6 +410,191 @@ await createNotification({
     return res.status(500).json({
       success: false,
       message: "Internal server error",
+    });
+  }
+}
+
+export async function addAttachment(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const employeeId =
+      req.user?.employeeId;
+
+    if (!employeeId) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This user is not linked to an employee",
+      });
+    }
+
+    const requestId =
+      parseId(req.params.id);
+
+    const request =
+      await getRequestById(requestId);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    if (
+      request.employeeId !== BigInt(employeeId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You cannot add attachments to this request",
+      });
+    }
+
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Request body is required",
+      });
+    }
+
+    const {
+      fileName,
+      fileUrl,
+      fileType,
+      fileSize,
+    } = req.body;
+
+    if (!fileName || !fileUrl) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "fileName and fileUrl are required",
+      });
+    }
+
+    const attachment =
+      await createRequestAttachment({
+        requestId,
+        fileName,
+        fileUrl,
+
+        ...(fileType !== undefined && {
+          fileType,
+        }),
+
+        ...(fileSize !== undefined && {
+          fileSize: BigInt(fileSize),
+        }),
+      });
+
+    return res.status(201).json({
+      success: true,
+      message:
+        "Attachment added successfully",
+      data: serializeBigInt(attachment),
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid request ID",
+      });
+    }
+
+    console.error(
+      "Add request attachment error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Internal server error",
+    });
+  }
+}
+
+export async function attachments(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const id =
+      parseId(req.params.id);
+
+    const request =
+      await getRequestById(id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    const roles =
+      req.user?.roles ?? [];
+
+    const employeeId =
+      req.user?.employeeId;
+
+    const isAdminOrHr =
+      roles.includes("admin") ||
+      roles.includes("hr");
+
+    const isOwner =
+      employeeId !== null &&
+      employeeId !== undefined &&
+      request.employeeId ===
+        BigInt(employeeId);
+
+    if (!isAdminOrHr && !isOwner) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You do not have permission to view these attachments",
+      });
+    }
+
+    const data =
+      await getAttachmentsByRequest(id);
+
+    return res.status(200).json({
+      success: true,
+      data: serializeBigInt(data),
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid request ID",
+      });
+    }
+
+    console.error(
+      "Get request attachments error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Internal server error",
     });
   }
 }

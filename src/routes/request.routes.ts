@@ -1,6 +1,8 @@
 import { Router } from "express";
 
 import {
+  addAttachment,
+  attachments,
   index,
   myRequests,
   review,
@@ -15,6 +17,8 @@ import {
 import {
   authorizeRoles,
 } from "../middleware/role.middleware.js";
+
+
 
 const router = Router();
 
@@ -48,6 +52,17 @@ router.patch(
   "/:id/review",
   authorizeRoles("admin", "hr"),
   review
+);
+
+router.post(
+  "/:id/attachments",
+  authorizeRoles("employee"),
+  addAttachment
+);
+
+router.get(
+  "/:id/attachments",
+  attachments
 );
 
 export default router;
