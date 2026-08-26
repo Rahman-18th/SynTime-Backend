@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import prisma from "./config/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
+import shiftRoutes from "./routes/shift.routes.js";
 
 
 dotenv.config();
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use("/api/shifts", shiftRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
