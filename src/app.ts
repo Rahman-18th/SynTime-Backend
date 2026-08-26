@@ -10,6 +10,7 @@ import attendanceRoutes from "./routes/attendance.routes.js";
 import requestRoutes from "./routes/request.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import path from "path";
+import payslipRoutes from "./routes/payslip.routes.js";
 
 
 dotenv.config();
@@ -35,7 +36,7 @@ app.use("/api/schedules", scheduleRoutes);
 app.use("/api/attendances", attendanceRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/payslips", payslipRoutes);
 
 
 app.get("/api/health", (req, res) => {
