@@ -5,6 +5,7 @@ import {
   myPayslips,
   show,
   store,
+  update,
 } from "../controllers/payslip.controller.js";
 
 import {
@@ -41,6 +42,12 @@ router.get(
   "/:id",
   authorizeRoles("admin", "hr"),
   show
+);
+
+router.put(
+  "/:id",
+  authorizeRoles("admin", "hr"),
+  update
 );
 
 export default router;

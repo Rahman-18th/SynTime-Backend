@@ -1,5 +1,11 @@
 import prisma from "../config/prisma.js";
 
+/*
+|--------------------------------------------------------------------------
+| Get all payslips
+|--------------------------------------------------------------------------
+*/
+
 export async function getAllPayslips() {
   return prisma.payslip.findMany({
     include: {
@@ -16,6 +22,12 @@ export async function getAllPayslips() {
   });
 }
 
+/*
+|--------------------------------------------------------------------------
+| Get payslip by ID
+|--------------------------------------------------------------------------
+*/
+
 export async function getPayslipById(
   id: bigint
 ) {
@@ -28,6 +40,12 @@ export async function getPayslipById(
     },
   });
 }
+
+/*
+|--------------------------------------------------------------------------
+| Get all payslips by employee
+|--------------------------------------------------------------------------
+*/
 
 export async function getPayslipsByEmployee(
   employeeId: bigint
@@ -47,6 +65,37 @@ export async function getPayslipsByEmployee(
   });
 }
 
+/*
+|--------------------------------------------------------------------------
+| Get published payslips by employee
+|--------------------------------------------------------------------------
+*/
+
+export async function getPublishedPayslipsByEmployee(
+  employeeId: bigint
+) {
+  return prisma.payslip.findMany({
+    where: {
+      employeeId,
+      status: "published",
+    },
+    orderBy: [
+      {
+        periodYear: "desc",
+      },
+      {
+        periodMonth: "desc",
+      },
+    ],
+  });
+}
+
+/*
+|--------------------------------------------------------------------------
+| Create payslip
+|--------------------------------------------------------------------------
+*/
+
 export async function createPayslip(data: {
   employeeId: bigint;
   periodMonth: number;
@@ -54,9 +103,12 @@ export async function createPayslip(data: {
   basicSalary: number;
   totalIncome: number;
   totalDeduction: number;
-  takeHomePay: number;
   status?: string;
 }) {
+  const takeHomePay =
+    data.totalIncome -
+    data.totalDeduction;
+
   return prisma.payslip.create({
     data: {
       employeeId:
@@ -77,12 +129,86 @@ export async function createPayslip(data: {
       totalDeduction:
         data.totalDeduction,
 
-      takeHomePay:
-        data.takeHomePay,
+      takeHomePay,
 
       ...(data.status !== undefined && {
         status: data.status,
       }),
+    },
+  });
+}
+
+/*
+|--------------------------------------------------------------------------
+| Update payslip
+|--------------------------------------------------------------------------
+*/
+
+export async function updatePayslip(
+  id: bigint,
+  data: {
+    basicSalary?: number;
+    totalIncome?: number;
+    totalDeduction?: number;
+    status?: string;
+  }
+) {
+  const existingPayslip =
+    await prisma.payslip.findUnique({
+      where: {
+        id,
+      },
+    });
+
+  if (!existingPayslip) {
+    throw new Error(
+      "PAYSLIP_NOT_FOUND"
+    );
+  }
+
+  const totalIncome =
+    data.totalIncome ??
+    Number(
+      existingPayslip.totalIncome
+    );
+
+  const totalDeduction =
+    data.totalDeduction ??
+    Number(
+      existingPayslip.totalDeduction
+    );
+
+  const takeHomePay =
+    totalIncome -
+    totalDeduction;
+
+  return prisma.payslip.update({
+    where: {
+      id,
+    },
+
+    data: {
+      ...(data.basicSalary !== undefined && {
+        basicSalary:
+          data.basicSalary,
+      }),
+
+      ...(data.totalIncome !== undefined && {
+        totalIncome:
+          data.totalIncome,
+      }),
+
+      ...(data.totalDeduction !== undefined && {
+        totalDeduction:
+          data.totalDeduction,
+      }),
+
+      ...(data.status !== undefined && {
+        status:
+          data.status,
+      }),
+
+      takeHomePay,
     },
   });
 }

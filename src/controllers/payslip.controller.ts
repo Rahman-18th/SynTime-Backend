@@ -11,7 +11,8 @@ import {
   createPayslip,
   getAllPayslips,
   getPayslipById,
-  getPayslipsByEmployee,
+  getPublishedPayslipsByEmployee,
+  updatePayslip,
 } from "../services/payslip.service.js";
 
 import {
@@ -58,8 +59,7 @@ export async function index(
 
     return res.status(200).json({
       success: true,
-      data:
-        serializeBigInt(payslips),
+      data: serializeBigInt(payslips),
     });
   } catch (error) {
     console.error(
@@ -102,8 +102,7 @@ export async function show(
 
     return res.status(200).json({
       success: true,
-      data:
-        serializeBigInt(payslip),
+      data: serializeBigInt(payslip),
     });
   } catch (error) {
     if (
@@ -153,14 +152,13 @@ export async function myPayslips(
     }
 
     const payslips =
-      await getPayslipsByEmployee(
+      await getPublishedPayslipsByEmployee(
         BigInt(employeeId)
       );
 
     return res.status(200).json({
       success: true,
-      data:
-        serializeBigInt(payslips),
+      data: serializeBigInt(payslips),
     });
   } catch (error) {
     console.error(
@@ -205,7 +203,6 @@ export async function store(
       basicSalary,
       totalIncome,
       totalDeduction,
-      takeHomePay,
       status,
     } = req.body;
 
@@ -215,8 +212,7 @@ export async function store(
       periodYear === undefined ||
       basicSalary === undefined ||
       totalIncome === undefined ||
-      totalDeduction === undefined ||
-      takeHomePay === undefined
+      totalDeduction === undefined
     ) {
       return res.status(400).json({
         success: false,
@@ -240,16 +236,12 @@ export async function store(
     const parsedTotalDeduction =
       Number(totalDeduction);
 
-    const parsedTakeHomePay =
-      Number(takeHomePay);
-
     if (
       Number.isNaN(month) ||
       Number.isNaN(year) ||
       Number.isNaN(parsedBasicSalary) ||
       Number.isNaN(parsedTotalIncome) ||
-      Number.isNaN(parsedTotalDeduction) ||
-      Number.isNaN(parsedTakeHomePay)
+      Number.isNaN(parsedTotalDeduction)
     ) {
       return res.status(400).json({
         success: false,
@@ -270,15 +262,36 @@ export async function store(
     }
 
     if (
+      year < 2000 ||
+      year > 2100
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "periodYear is invalid",
+      });
+    }
+
+    if (
       parsedBasicSalary < 0 ||
       parsedTotalIncome < 0 ||
-      parsedTotalDeduction < 0 ||
-      parsedTakeHomePay < 0
+      parsedTotalDeduction < 0
     ) {
       return res.status(400).json({
         success: false,
         message:
           "Payslip amounts cannot be negative",
+      });
+    }
+
+    if (
+      parsedTotalDeduction >
+      parsedTotalIncome
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Total deduction cannot exceed total income",
       });
     }
 
@@ -318,9 +331,6 @@ export async function store(
         totalDeduction:
           parsedTotalDeduction,
 
-        takeHomePay:
-          parsedTakeHomePay,
-
         ...(status !== undefined && {
           status,
         }),
@@ -354,6 +364,158 @@ export async function store(
 
     console.error(
       "Create payslip error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Internal server error",
+    });
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| PUT /api/payslips/:id
+|--------------------------------------------------------------------------
+*/
+
+export async function update(
+  req: Request,
+  res: Response
+) {
+  try {
+    const id =
+      parseId(req.params.id);
+
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Request body is required",
+      });
+    }
+
+    const {
+      basicSalary,
+      totalIncome,
+      totalDeduction,
+      status,
+    } = req.body;
+
+    const allowedStatuses = [
+      "draft",
+      "published",
+    ];
+
+    if (
+      status !== undefined &&
+      !allowedStatuses.includes(status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid payslip status",
+      });
+    }
+
+    const parsedData = {
+      ...(basicSalary !== undefined && {
+        basicSalary:
+          Number(basicSalary),
+      }),
+
+      ...(totalIncome !== undefined && {
+        totalIncome:
+          Number(totalIncome),
+      }),
+
+      ...(totalDeduction !== undefined && {
+        totalDeduction:
+          Number(totalDeduction),
+      }),
+
+      ...(status !== undefined && {
+        status,
+      }),
+    };
+
+    if (
+      Object.keys(parsedData).length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No fields provided for update",
+      });
+    }
+
+    const numericValues = [
+      parsedData.basicSalary,
+      parsedData.totalIncome,
+      parsedData.totalDeduction,
+    ].filter(
+      (value) =>
+        value !== undefined
+    );
+
+    if (
+      numericValues.some(
+        (value) =>
+          Number.isNaN(value) ||
+          value! < 0
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Payslip amounts must be valid non-negative numbers",
+      });
+    }
+
+    const payslip =
+      await updatePayslip(
+        id,
+        parsedData
+      );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Payslip updated successfully",
+      data:
+        serializeBigInt(payslip),
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid payslip ID",
+      });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "PAYSLIP_NOT_FOUND"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Payslip not found",
+      });
+    }
+
+    console.error(
+      "Update payslip error:",
       error
     );
 
