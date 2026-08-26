@@ -18,6 +18,10 @@ import {
   authorizeRoles,
 } from "../middleware/role.middleware.js";
 
+import {
+  uploadRequestAttachment,
+} from "../middleware/upload.middleware.js";
+
 
 
 const router = Router();
@@ -57,6 +61,9 @@ router.patch(
 router.post(
   "/:id/attachments",
   authorizeRoles("employee"),
+  uploadRequestAttachment.single(
+    "file"
+  ),
   addAttachment
 );
 

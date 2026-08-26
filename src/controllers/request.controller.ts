@@ -434,17 +434,21 @@ export async function addAttachment(
       parseId(req.params.id);
 
     const request =
-      await getRequestById(requestId);
+      await getRequestById(
+        requestId
+      );
 
     if (!request) {
       return res.status(404).json({
         success: false,
-        message: "Request not found",
+        message:
+          "Request not found",
       });
     }
 
     if (
-      request.employeeId !== BigInt(employeeId)
+      request.employeeId !==
+      BigInt(employeeId)
     ) {
       return res.status(403).json({
         success: false,
@@ -453,52 +457,42 @@ export async function addAttachment(
       });
     }
 
-    if (
-      !req.body ||
-      Object.keys(req.body).length === 0
-    ) {
+    if (!req.file) {
       return res.status(400).json({
         success: false,
         message:
-          "Request body is required",
+          "Attachment file is required",
       });
     }
 
-    const {
-      fileName,
-      fileUrl,
-      fileType,
-      fileSize,
-    } = req.body;
-
-    if (!fileName || !fileUrl) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "fileName and fileUrl are required",
-      });
-    }
+    const fileUrl =
+      `/uploads/${req.file.filename}`;
 
     const attachment =
       await createRequestAttachment({
         requestId,
-        fileName,
+
+        fileName:
+          req.file.originalname,
+
         fileUrl,
 
-        ...(fileType !== undefined && {
-          fileType,
-        }),
+        fileType:
+          req.file.mimetype,
 
-        ...(fileSize !== undefined && {
-          fileSize: BigInt(fileSize),
-        }),
+        fileSize:
+          BigInt(req.file.size),
       });
 
     return res.status(201).json({
       success: true,
       message:
-        "Attachment added successfully",
-      data: serializeBigInt(attachment),
+        "Attachment uploaded successfully",
+
+      data:
+        serializeBigInt(
+          attachment
+        ),
     });
   } catch (error) {
     if (
@@ -513,7 +507,7 @@ export async function addAttachment(
     }
 
     console.error(
-      "Add request attachment error:",
+      "Upload attachment error:",
       error
     );
 
@@ -524,7 +518,6 @@ export async function addAttachment(
     });
   }
 }
-
 export async function attachments(
   req: AuthRequest,
   res: Response
