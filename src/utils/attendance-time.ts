@@ -94,3 +94,24 @@ export function isScheduleToday(
       localNow.getUTCDate()
   );
 }
+
+export function getTodayWorkDate(): Date {
+  const timezoneOffsetMinutes = Number(
+    process.env.TIMEZONE_OFFSET_MINUTES ?? 420
+  );
+
+  const now = new Date();
+
+  const localNow = new Date(
+    now.getTime() +
+      timezoneOffsetMinutes * 60 * 1000
+  );
+
+  return new Date(
+    Date.UTC(
+      localNow.getUTCFullYear(),
+      localNow.getUTCMonth(),
+      localNow.getUTCDate()
+    )
+  );
+}

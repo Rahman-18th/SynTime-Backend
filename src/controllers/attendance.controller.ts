@@ -1,8 +1,11 @@
 import type { Request, Response } from "express";
+import type {
+  AuthRequest,
+} from "../middleware/auth.middleware.js";
 import { calculateDistanceMeters, } from "../utils/distance.js";
 import {
   determineAttendanceStatus,
-  isScheduleToday,
+  isScheduleToday, getTodayWorkDate,
 } from "../utils/attendance-time.js";
 
 import {
@@ -12,6 +15,7 @@ import {
   getAttendanceById,
   getAttendanceBySchedule,
   getScheduleForAttendance,
+  getTodayScheduleByEmployee,
 } from "../services/attendance.service.js";
 
 function serializeBigInt(data: unknown) {
@@ -107,10 +111,20 @@ export async function show(
 }
 
 export async function clockIn(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
+    const employeeId = req.user?.employeeId;
+
+    if (!employeeId) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This user is not linked to an employee",
+      });
+    }
+
     if (
       !req.body ||
       Object.keys(req.body).length === 0
@@ -122,35 +136,38 @@ export async function clockIn(
     }
 
     const {
-      scheduleId,
       latitude,
       longitude,
     } = req.body;
 
     if (
-      !scheduleId ||
       latitude === undefined ||
       longitude === undefined
     ) {
       return res.status(400).json({
         success: false,
         message:
-          "scheduleId, latitude and longitude are required",
+          "latitude and longitude are required",
       });
     }
 
-    const parsedScheduleId =
-      BigInt(scheduleId);
+    const parsedEmployeeId =
+      BigInt(employeeId);
+
+    const today =
+      getTodayWorkDate();
 
     const schedule =
-      await getScheduleForAttendance(
-        parsedScheduleId
+      await getTodayScheduleByEmployee(
+        parsedEmployeeId,
+        today
       );
 
     if (!schedule) {
       return res.status(404).json({
         success: false,
-        message: "Schedule not found",
+        message:
+          "No schedule found for today",
       });
     }
 
@@ -162,13 +179,13 @@ export async function clockIn(
       });
     }
 
-    if (!isScheduleToday(schedule.workDate)) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "Clock in is only allowed on the scheduled work date",
-  });
-}
+    if (schedule.attendance) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Employee has already clocked in today",
+      });
+    }
 
     if (
       schedule.office.latitude === null ||
@@ -178,19 +195,6 @@ export async function clockIn(
         success: false,
         message:
           "Office location is not configured",
-      });
-    }
-
-    const existingAttendance =
-      await getAttendanceBySchedule(
-        parsedScheduleId
-      );
-
-    if (existingAttendance) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "Employee has already clocked in for this schedule",
       });
     }
 
@@ -257,30 +261,28 @@ export async function clockIn(
       });
     }
 
-   const now = new Date();
+    const now = new Date();
 
-const attendanceStatus =
-  determineAttendanceStatus(
-    now,
-    schedule.workDate,
-    schedule.shift.startTime
-  );
+    const attendanceStatus =
+      determineAttendanceStatus(
+        now,
+        schedule.workDate,
+        schedule.shift.startTime
+      );
 
-const attendance =
-  await clockInAttendance({
-    scheduleId: parsedScheduleId,
-    checkInAt: now,
-    status: attendanceStatus,
+    const attendance =
+      await clockInAttendance({
+        scheduleId: schedule.id,
+        checkInAt: now,
+        status: attendanceStatus,
+        checkInLatitude:
+          employeeLatitude,
+        checkInLongitude:
+          employeeLongitude,
+        checkInDistanceMeters:
+          distanceMeters,
+      });
 
-    checkInLatitude:
-      employeeLatitude,
-
-    checkInLongitude:
-      employeeLongitude,
-
-    checkInDistanceMeters:
-      distanceMeters,
-  });
     return res.status(201).json({
       success: true,
       message: "Clock in successful",
@@ -295,13 +297,21 @@ const attendance =
     });
   }
 }
-
 export async function clockOut(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
-    const id = parseId(req.params.id);
+    const employeeId =
+      req.user?.employeeId;
+
+    if (!employeeId) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This user is not linked to an employee",
+      });
+    }
 
     if (
       !req.body ||
@@ -309,7 +319,8 @@ export async function clockOut(
     ) {
       return res.status(400).json({
         success: false,
-        message: "Request body is required",
+        message:
+          "Request body is required",
       });
     }
 
@@ -329,21 +340,31 @@ export async function clockOut(
       });
     }
 
+    const today =
+      getTodayWorkDate();
+
+    const schedule =
+      await getTodayScheduleByEmployee(
+        BigInt(employeeId),
+        today
+      );
+
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No schedule found for today",
+      });
+    }
+
     const attendance =
-      await getAttendanceById(id);
+      schedule.attendance;
 
     if (!attendance) {
       return res.status(404).json({
         success: false,
-        message: "Attendance not found",
-      });
-    }
-
-    if (!attendance.checkInAt) {
-      return res.status(400).json({
-        success: false,
         message:
-          "Employee has not clocked in yet",
+          "Employee has not clocked in today",
       });
     }
 
@@ -352,6 +373,17 @@ export async function clockOut(
         success: false,
         message:
           "Employee has already clocked out",
+      });
+    }
+
+    if (
+      schedule.office.latitude === null ||
+      schedule.office.longitude === null
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Office location is not configured",
       });
     }
 
@@ -385,25 +417,11 @@ export async function clockOut(
       });
     }
 
-    const office =
-      attendance.schedule.office;
-
-    if (
-      office.latitude === null ||
-      office.longitude === null
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Office location is not configured",
-      });
-    }
-
     const officeLatitude =
-      Number(office.latitude);
+      Number(schedule.office.latitude);
 
     const officeLongitude =
-      Number(office.longitude);
+      Number(schedule.office.longitude);
 
     const distanceMeters =
       calculateDistanceMeters(
@@ -414,7 +432,7 @@ export async function clockOut(
       );
 
     const allowedRadius =
-      office.allowedRadiusMeters;
+      schedule.office.allowedRadiusMeters;
 
     if (distanceMeters > allowedRadius) {
       return res.status(403).json({
@@ -433,37 +451,28 @@ export async function clockOut(
     }
 
     const updatedAttendance =
-      await clockOutAttendance(id, {
-        checkOutAt: new Date(),
-
-        checkOutLatitude:
-          employeeLatitude,
-
-        checkOutLongitude:
-          employeeLongitude,
-
-        checkOutDistanceMeters:
-          distanceMeters,
-      });
+      await clockOutAttendance(
+        attendance.id,
+        {
+          checkOutAt: new Date(),
+          checkOutLatitude:
+            employeeLatitude,
+          checkOutLongitude:
+            employeeLongitude,
+          checkOutDistanceMeters:
+            distanceMeters,
+        }
+      );
 
     return res.status(200).json({
       success: true,
-      message: "Clock out successful",
+      message:
+        "Clock out successful",
       data: serializeBigInt(
         updatedAttendance
       ),
     });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "INVALID_ID"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid attendance ID",
-      });
-    }
-
     console.error(
       "Clock out error:",
       error
@@ -471,7 +480,8 @@ export async function clockOut(
 
     return res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message:
+        "Internal server error",
     });
   }
 }

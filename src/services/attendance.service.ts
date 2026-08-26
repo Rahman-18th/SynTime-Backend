@@ -106,3 +106,23 @@ export async function getScheduleForAttendance(
     },
   });
 }
+
+export async function getTodayScheduleByEmployee(
+  employeeId: bigint,
+  workDate: Date
+) {
+  return prisma.schedule.findUnique({
+    where: {
+      employeeId_workDate: {
+        employeeId,
+        workDate,
+      },
+    },
+    include: {
+      employee: true,
+      shift: true,
+      office: true,
+      attendance: true,
+    },
+  });
+}

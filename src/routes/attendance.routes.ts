@@ -33,13 +33,11 @@ router.get(
 
 router.post(
   "/clock-in",
-  authorizeRoles("admin", "hr"),
   clockIn
 );
 
 router.patch(
-  "/:id/clock-out",
-  authorizeRoles("admin", "hr"),
+  "/clock-out",
   clockOut
 );
 

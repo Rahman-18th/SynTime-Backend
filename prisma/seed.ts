@@ -137,6 +137,69 @@ main()
   });
 
 
+const employeeRole = await prisma.role.upsert({
+  where: {
+    name: "employee",
+  },
+  update: {},
+  create: {
+    name: "employee",
+    description: "Employee role",
+  },
+});
+
+const testEmployee = await prisma.employee.findFirst({
+  where: {
+    employeeNumber: "EMP-2026001",
+  },
+});
+
+if (!testEmployee) {
+  throw new Error(
+    "Test employee EMP-2026001 not found"
+  );
+}
+
+const employeePasswordHash =
+  await bcrypt.hash("Employee123!", 12);
+
+const employeeUser =
+  await prisma.user.upsert({
+    where: {
+      email: "employee@syntime.local",
+    },
+    update: {
+      employeeId: testEmployee.id,
+      passwordHash: employeePasswordHash,
+      isActive: true,
+    },
+    create: {
+      employeeId: testEmployee.id,
+      email: "employee@syntime.local",
+      passwordHash: employeePasswordHash,
+      isActive: true,
+    },
+  });
+
+await prisma.userRole.upsert({
+  where: {
+    userId_roleId: {
+      userId: employeeUser.id,
+      roleId: employeeRole.id,
+    },
+  },
+  update: {},
+  create: {
+    userId: employeeUser.id,
+    roleId: employeeRole.id,
+  },
+});
+
+console.log(
+  "Employee user:",
+  employeeUser.email
+);
+
 console.log("Organization seeded");
 console.log("Company ID:", company.id.toString());
 console.log("IT Department ID:", itDepartment.id.toString());

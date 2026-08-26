@@ -25,6 +25,13 @@ export async function loginUser(email: string, password: string) {
     throw new Error("ACCOUNT_INACTIVE");
   }
 
+  if (
+  user.employee &&
+  user.employee.status !== "active"
+) {
+  throw new Error("EMPLOYEE_INACTIVE");
+}
+
   const passwordValid = await bcrypt.compare(
     password,
     user.passwordHash

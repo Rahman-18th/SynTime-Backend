@@ -34,6 +34,13 @@ export async function login(req: Request, res: Response) {
           message: "Account is inactive",
         });
       }
+
+      if (error.message === "EMPLOYEE_INACTIVE") {
+       return res.status(403).json({
+          success: false,
+          message: "Employee account is inactive",
+  });
+}
     }
 
     console.error("Login error:", error);
