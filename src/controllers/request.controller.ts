@@ -16,6 +16,10 @@ import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
 
+import {
+  createNotification,
+} from "../services/notification.service.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -341,6 +345,30 @@ export async function review(
           reviewNote,
         }),
       });
+
+      const notificationTitle =
+  status === "approved"
+    ? "Request Approved"
+    : "Request Rejected";
+
+const notificationMessage =
+  status === "approved"
+    ? `Your ${existingRequest.type} request has been approved.`
+    : `Your ${existingRequest.type} request has been rejected.`;
+
+await createNotification({
+  employeeId:
+    existingRequest.employeeId,
+
+  title:
+    notificationTitle,
+
+  message:
+    notificationMessage,
+
+  type:
+    "request_review",
+});
 
     return res.status(200).json({
       success: true,

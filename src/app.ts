@@ -8,6 +8,7 @@ import shiftRoutes from "./routes/shift.routes.js";
 import scheduleRoutes from "./routes/schedule.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import requestRoutes from "./routes/request.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 
 
 dotenv.config();
@@ -23,7 +24,7 @@ app.use("/api/shifts", shiftRoutes);
 app.use("/api/schedules", scheduleRoutes);
 app.use("/api/attendances", attendanceRoutes);
 app.use("/api/requests", requestRoutes);
-
+app.use("/api/notifications", notificationRoutes);
 
 
 
