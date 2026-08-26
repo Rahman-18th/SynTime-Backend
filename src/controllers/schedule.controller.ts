@@ -7,6 +7,10 @@ import {
   updateSchedule,
 } from "../services/schedule.service.js";
 
+import {
+  isPrismaKnownError,
+} from "../utils/prisma-error.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -140,13 +144,31 @@ export async function store(req: Request, res: Response) {
       data: serializeBigInt(schedule),
     });
   } catch (error) {
-    console.error("Create schedule error:", error);
+  if (isPrismaKnownError(error)) {
+    if (error.code === "P2002") {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Employee already has a schedule for this date",
+      });
+    }
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid employee, shift, or office reference",
+      });
+    }
   }
+
+  console.error("Create schedule error:", error);
+
+  return res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
+}
 }
 
 export async function update(req: Request, res: Response) {
@@ -217,21 +239,46 @@ export async function update(req: Request, res: Response) {
       data: serializeBigInt(schedule),
     });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "INVALID_ID"
-    ) {
-      return res.status(400).json({
+  if (
+    error instanceof Error &&
+    error.message === "INVALID_ID"
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid schedule ID",
+    });
+  }
+
+  if (isPrismaKnownError(error)) {
+    if (error.code === "P2002") {
+      return res.status(409).json({
         success: false,
-        message: "Invalid schedule ID",
+        message:
+          "Employee already has a schedule for this date",
       });
     }
 
-    console.error("Update schedule error:", error);
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid employee, shift, or office reference",
+      });
+    }
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        message: "Schedule not found",
+      });
+    }
   }
+
+  console.error("Update schedule error:", error);
+
+  return res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
+}
 }

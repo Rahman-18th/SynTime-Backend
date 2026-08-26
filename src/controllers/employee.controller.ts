@@ -8,6 +8,10 @@ import {
   updateEmployeeStatus,
 } from "../services/employee.service.js";
 
+import {
+  isPrismaKnownError,
+} from "../utils/prisma-error.js";
+
 /*
 |--------------------------------------------------------------------------
 | Helpers
@@ -17,7 +21,9 @@ import {
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
-      typeof value === "bigint" ? value.toString() : value
+      typeof value === "bigint"
+        ? value.toString()
+        : value
     )
   );
 }
@@ -66,14 +72,18 @@ export async function index(
   res: Response
 ) {
   try {
-    const employees = await getAllEmployees();
+    const employees =
+      await getAllEmployees();
 
     return res.status(200).json({
       success: true,
       data: serializeBigInt(employees),
     });
   } catch (error) {
-    console.error("Get employees error:", error);
+    console.error(
+      "Get employees error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -93,9 +103,11 @@ export async function show(
   res: Response
 ) {
   try {
-    const id = parseEmployeeId(req.params.id);
+    const id =
+      parseEmployeeId(req.params.id);
 
-    const employee = await getEmployeeById(id);
+    const employee =
+      await getEmployeeById(id);
 
     if (!employee) {
       return res.status(404).json({
@@ -109,11 +121,19 @@ export async function show(
       data: serializeBigInt(employee),
     });
   } catch (error) {
-    if (handleInvalidEmployeeId(error, res)) {
+    if (
+      handleInvalidEmployeeId(
+        error,
+        res
+      )
+    ) {
       return;
     }
 
-    console.error("Get employee error:", error);
+    console.error(
+      "Get employee error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -133,7 +153,10 @@ export async function store(
   res: Response
 ) {
   try {
-    if (!req.body || Object.keys(req.body).length === 0) {
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Request body is required",
@@ -164,37 +187,80 @@ export async function store(
     ) {
       return res.status(400).json({
         success: false,
-        message: "Required employee fields are missing",
+        message:
+          "Required employee fields are missing",
       });
     }
 
     const employeeData = {
-      companyId: BigInt(companyId),
-      departmentId: BigInt(departmentId),
-      officeId: BigInt(officeId),
+      companyId:
+        BigInt(companyId),
+
+      departmentId:
+        BigInt(departmentId),
+
+      officeId:
+        BigInt(officeId),
+
       employeeNumber,
       firstName,
       email,
 
-      ...(lastName !== undefined && { lastName }),
-      ...(phone !== undefined && { phone }),
-      ...(position !== undefined && { position }),
-      ...(workType !== undefined && { workType }),
+      ...(lastName !== undefined && {
+        lastName,
+      }),
+
+      ...(phone !== undefined && {
+        phone,
+      }),
+
+      ...(position !== undefined && {
+        position,
+      }),
+
+      ...(workType !== undefined && {
+        workType,
+      }),
 
       ...(joinDate !== undefined && {
         joinDate: new Date(joinDate),
       }),
     };
 
-    const employee = await createEmployee(employeeData);
+    const employee =
+      await createEmployee(
+        employeeData
+      );
 
     return res.status(201).json({
       success: true,
-      message: "Employee created successfully",
+      message:
+        "Employee created successfully",
       data: serializeBigInt(employee),
     });
   } catch (error) {
-    console.error("Create employee error:", error);
+    if (isPrismaKnownError(error)) {
+      if (error.code === "P2002") {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Employee number or email already exists",
+        });
+      }
+
+      if (error.code === "P2003") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid company, department, or office reference",
+        });
+      }
+    }
+
+    console.error(
+      "Create employee error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -214,9 +280,13 @@ export async function update(
   res: Response
 ) {
   try {
-    const id = parseEmployeeId(req.params.id);
+    const id =
+      parseEmployeeId(req.params.id);
 
-    if (!req.body || Object.keys(req.body).length === 0) {
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Request body is required",
@@ -237,48 +307,105 @@ export async function update(
 
     const employeeData = {
       ...(departmentId !== undefined && {
-        departmentId: BigInt(departmentId),
+        departmentId:
+          BigInt(departmentId),
       }),
 
       ...(officeId !== undefined && {
-        officeId: BigInt(officeId),
+        officeId:
+          BigInt(officeId),
       }),
 
-      ...(firstName !== undefined && { firstName }),
-      ...(lastName !== undefined && { lastName }),
-      ...(email !== undefined && { email }),
-      ...(phone !== undefined && { phone }),
-      ...(position !== undefined && { position }),
-      ...(workType !== undefined && { workType }),
+      ...(firstName !== undefined && {
+        firstName,
+      }),
+
+      ...(lastName !== undefined && {
+        lastName,
+      }),
+
+      ...(email !== undefined && {
+        email,
+      }),
+
+      ...(phone !== undefined && {
+        phone,
+      }),
+
+      ...(position !== undefined && {
+        position,
+      }),
+
+      ...(workType !== undefined && {
+        workType,
+      }),
 
       ...(joinDate !== undefined && {
         joinDate: new Date(joinDate),
       }),
     };
 
-    if (Object.keys(employeeData).length === 0) {
+    if (
+      Object.keys(employeeData).length === 0
+    ) {
       return res.status(400).json({
         success: false,
-        message: "No fields provided for update",
+        message:
+          "No fields provided for update",
       });
     }
 
-    const employee = await updateEmployee(
-      id,
-      employeeData
-    );
+    const employee =
+      await updateEmployee(
+        id,
+        employeeData
+      );
 
     return res.status(200).json({
       success: true,
-      message: "Employee updated successfully",
+      message:
+        "Employee updated successfully",
       data: serializeBigInt(employee),
     });
   } catch (error) {
-    if (handleInvalidEmployeeId(error, res)) {
+    if (
+      handleInvalidEmployeeId(
+        error,
+        res
+      )
+    ) {
       return;
     }
 
-    console.error("Update employee error:", error);
+    if (isPrismaKnownError(error)) {
+      if (error.code === "P2002") {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Employee number or email already exists",
+        });
+      }
+
+      if (error.code === "P2003") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid department or office reference",
+        });
+      }
+
+      if (error.code === "P2025") {
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found",
+        });
+      }
+    }
+
+    console.error(
+      "Update employee error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -298,9 +425,13 @@ export async function updateStatus(
   res: Response
 ) {
   try {
-    const id = parseEmployeeId(req.params.id);
+    const id =
+      parseEmployeeId(req.params.id);
 
-    if (!req.body || Object.keys(req.body).length === 0) {
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Request body is required",
@@ -321,7 +452,9 @@ export async function updateStatus(
       "inactive",
     ];
 
-    if (!allowedStatuses.includes(status)) {
+    if (
+      !allowedStatuses.includes(status)
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -329,10 +462,11 @@ export async function updateStatus(
       });
     }
 
-    const employee = await updateEmployeeStatus(
-      id,
-      status
-    );
+    const employee =
+      await updateEmployeeStatus(
+        id,
+        status
+      );
 
     return res.status(200).json({
       success: true,
@@ -341,8 +475,22 @@ export async function updateStatus(
       data: serializeBigInt(employee),
     });
   } catch (error) {
-    if (handleInvalidEmployeeId(error, res)) {
+    if (
+      handleInvalidEmployeeId(
+        error,
+        res
+      )
+    ) {
       return;
+    }
+
+    if (isPrismaKnownError(error)) {
+      if (error.code === "P2025") {
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found",
+        });
+      }
     }
 
     console.error(

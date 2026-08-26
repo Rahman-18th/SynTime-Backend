@@ -7,15 +7,29 @@ import {
   updateShift,
 } from "../services/shift.service.js";
 
+import {
+  isPrismaKnownError,
+} from "../utils/prisma-error.js";
+
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
-      typeof value === "bigint" ? value.toString() : value
+      typeof value === "bigint"
+        ? value.toString()
+        : value
     )
   );
 }
 
-function parseId(id: string | string[] | undefined): bigint {
+function parseId(
+  id: string | string[] | undefined
+): bigint {
   if (!id || Array.isArray(id)) {
     throw new Error("INVALID_ID");
   }
@@ -31,7 +45,35 @@ function timeToDate(time: string): Date {
   return new Date(`1970-01-01T${time}:00`);
 }
 
-export async function index(req: Request, res: Response) {
+function handleInvalidShiftId(
+  error: unknown,
+  res: Response
+) {
+  if (
+    error instanceof Error &&
+    error.message === "INVALID_ID"
+  ) {
+    res.status(400).json({
+      success: false,
+      message: "Invalid shift ID",
+    });
+
+    return true;
+  }
+
+  return false;
+}
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/shifts
+|--------------------------------------------------------------------------
+*/
+
+export async function index(
+  req: Request,
+  res: Response
+) {
   try {
     const shifts = await getAllShifts();
 
@@ -49,7 +91,16 @@ export async function index(req: Request, res: Response) {
   }
 }
 
-export async function show(req: Request, res: Response) {
+/*
+|--------------------------------------------------------------------------
+| GET /api/shifts/:id
+|--------------------------------------------------------------------------
+*/
+
+export async function show(
+  req: Request,
+  res: Response
+) {
   try {
     const id = parseId(req.params.id);
 
@@ -67,16 +118,34 @@ export async function show(req: Request, res: Response) {
       data: serializeBigInt(shift),
     });
   } catch (error) {
-    return res.status(400).json({
+    if (handleInvalidShiftId(error, res)) {
+      return;
+    }
+
+    console.error("Get shift error:", error);
+
+    return res.status(500).json({
       success: false,
-      message: "Invalid shift ID",
+      message: "Internal server error",
     });
   }
 }
 
-export async function store(req: Request, res: Response) {
+/*
+|--------------------------------------------------------------------------
+| POST /api/shifts
+|--------------------------------------------------------------------------
+*/
+
+export async function store(
+  req: Request,
+  res: Response
+) {
   try {
-    if (!req.body || Object.keys(req.body).length === 0) {
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Request body is required",
@@ -92,7 +161,12 @@ export async function store(req: Request, res: Response) {
       breakEnd,
     } = req.body;
 
-    if (!companyId || !name || !startTime || !endTime) {
+    if (
+      !companyId ||
+      !name ||
+      !startTime ||
+      !endTime
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -106,11 +180,11 @@ export async function store(req: Request, res: Response) {
       startTime: timeToDate(startTime),
       endTime: timeToDate(endTime),
 
-      ...(breakStart && {
+      ...(breakStart !== undefined && {
         breakStart: timeToDate(breakStart),
       }),
 
-      ...(breakEnd && {
+      ...(breakEnd !== undefined && {
         breakEnd: timeToDate(breakEnd),
       }),
     });
@@ -121,6 +195,24 @@ export async function store(req: Request, res: Response) {
       data: serializeBigInt(shift),
     });
   } catch (error) {
+    if (isPrismaKnownError(error)) {
+      if (error.code === "P2002") {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Shift name already exists for this company",
+        });
+      }
+
+      if (error.code === "P2003") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid company reference",
+        });
+      }
+    }
+
     console.error("Create shift error:", error);
 
     return res.status(500).json({
@@ -130,11 +222,23 @@ export async function store(req: Request, res: Response) {
   }
 }
 
-export async function update(req: Request, res: Response) {
+/*
+|--------------------------------------------------------------------------
+| PUT /api/shifts/:id
+|--------------------------------------------------------------------------
+*/
+
+export async function update(
+  req: Request,
+  res: Response
+) {
   try {
     const id = parseId(req.params.id);
 
-    if (!req.body || Object.keys(req.body).length === 0) {
+    if (
+      !req.body ||
+      Object.keys(req.body).length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Request body is required",
@@ -149,8 +253,10 @@ export async function update(req: Request, res: Response) {
       breakEnd,
     } = req.body;
 
-    const shift = await updateShift(id, {
-      ...(name !== undefined && { name }),
+    const shiftData = {
+      ...(name !== undefined && {
+        name,
+      }),
 
       ...(startTime !== undefined && {
         startTime: timeToDate(startTime),
@@ -167,7 +273,20 @@ export async function update(req: Request, res: Response) {
       ...(breakEnd !== undefined && {
         breakEnd: timeToDate(breakEnd),
       }),
-    });
+    };
+
+    if (Object.keys(shiftData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No fields provided for update",
+      });
+    }
+
+    const shift = await updateShift(
+      id,
+      shiftData
+    );
 
     return res.status(200).json({
       success: true,
@@ -175,6 +294,35 @@ export async function update(req: Request, res: Response) {
       data: serializeBigInt(shift),
     });
   } catch (error) {
+    if (handleInvalidShiftId(error, res)) {
+      return;
+    }
+
+    if (isPrismaKnownError(error)) {
+      if (error.code === "P2002") {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Shift name already exists for this company",
+        });
+      }
+
+      if (error.code === "P2003") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid company reference",
+        });
+      }
+
+      if (error.code === "P2025") {
+        return res.status(404).json({
+          success: false,
+          message: "Shift not found",
+        });
+      }
+    }
+
     console.error("Update shift error:", error);
 
     return res.status(500).json({
