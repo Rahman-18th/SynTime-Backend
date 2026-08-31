@@ -12,6 +12,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import path from "path";
 import payslipRoutes from "./routes/payslip.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 dotenv.config();
 
@@ -40,6 +41,10 @@ app.use("/api/payslips", payslipRoutes);
 app.use(
   "/api/profile",
   profileRoutes
+);
+app.use(
+  "/api/dashboard",
+  dashboardRoutes
 );
 
 app.get("/api/health", (req, res) => {

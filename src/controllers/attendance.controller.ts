@@ -14,6 +14,7 @@ import {
   getAllAttendances,
   getAttendanceById,
   getAttendanceBySchedule,
+  getMyAttendances,
   getScheduleForAttendance,
   getTodayScheduleByEmployee,
 } from "../services/attendance.service.js";
@@ -522,6 +523,107 @@ export async function clockOut(
   } catch (error) {
     console.error(
       "Clock out error:",
+      error
+    );
+
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
+  }
+}
+
+export async function getMyAttendanceHistory(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const employeeId =
+      req.user?.employeeId;
+
+    if (!employeeId) {
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
+    }
+
+    const monthRaw = req.query.month;
+    const yearRaw = req.query.year;
+
+    let month: number | undefined;
+    let year: number | undefined;
+
+    if (
+      typeof monthRaw === "string" &&
+      typeof yearRaw === "string"
+    ) {
+      month = Number(monthRaw);
+      year = Number(yearRaw);
+
+      if (
+        !Number.isInteger(month) ||
+        month < 1 ||
+        month > 12
+      ) {
+        return errorResponse(
+          res,
+          400,
+          "Month must be between 1 and 12"
+        );
+      }
+
+      if (
+        !Number.isInteger(year) ||
+        year < 2000
+      ) {
+        return errorResponse(
+          res,
+          400,
+          "Year is invalid"
+        );
+      }
+    }
+
+    const attendances =
+      await getMyAttendances(
+        BigInt(employeeId),
+        month,
+        year
+      );
+
+    const data = attendances.map(
+      (item: typeof attendances[0]) => ({
+        date:
+          item.schedule.workDate
+            .toISOString()
+            .split("T")[0],
+
+        checkInAt:
+          item.checkInAt,
+
+        checkOutAt:
+          item.checkOutAt,
+
+        status:
+          item.status,
+
+        location:
+          item.schedule.office.name,
+      })
+    );
+
+    return successResponse(
+      res,
+      200,
+      "Attendance history retrieved successfully",
+      data
+    );
+  } catch (error) {
+    console.error(
+      "Get attendance history error:",
       error
     );
 

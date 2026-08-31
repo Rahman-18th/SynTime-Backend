@@ -126,3 +126,50 @@ export async function getTodayScheduleByEmployee(
     },
   });
 }
+
+export async function getMyAttendances(
+  employeeId: bigint,
+  month?: number,
+  year?: number
+) {
+  let dateFilter;
+
+  if (month && year) {
+    const startDate = new Date(
+      Date.UTC(year, month - 1, 1)
+    );
+
+    const endDate = new Date(
+      Date.UTC(year, month, 1)
+    );
+
+    dateFilter = {
+      gte: startDate,
+      lt: endDate,
+    };
+  }
+
+  return prisma.attendance.findMany({
+    where: {
+      schedule: {
+        employeeId,
+        ...(dateFilter && {
+          workDate: dateFilter,
+        }),
+      },
+    },
+    include: {
+      schedule: {
+        include: {
+          office: true,
+          shift: true,
+        },
+      },
+    },
+    orderBy: {
+      schedule: {
+        workDate: "desc",
+      },
+    },
+  });
+}

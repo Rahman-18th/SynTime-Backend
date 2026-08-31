@@ -3,12 +3,14 @@ import { Router } from "express";
 import {
   clockIn,
   clockOut,
+  getMyAttendanceHistory,
   index,
   show,
 } from "../controllers/attendance.controller.js";
 
 import {
   authenticateToken,
+  
 } from "../middleware/auth.middleware.js";
 
 import {
@@ -20,6 +22,11 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get(
+  "/my",
+  authenticateToken,
+  getMyAttendanceHistory
+);
+router.get(
   "/",
   authorizeRoles("admin", "hr"),
   index
@@ -30,6 +37,7 @@ router.get(
   authorizeRoles("admin", "hr"),
   show
 );
+
 
 router.post(
   "/clock-in",
