@@ -11,6 +11,11 @@ import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
 
+import {
+  errorResponse,
+  successResponse,
+} from "../utils/api-response.js";
+
 /*
 |--------------------------------------------------------------------------
 | Helpers
@@ -53,10 +58,11 @@ function handleInvalidShiftId(
     error instanceof Error &&
     error.message === "INVALID_ID"
   ) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid shift ID",
-    });
+    errorResponse(
+      res,
+      400,
+      "Invalid shift ID"
+    );
 
     return true;
   }
@@ -77,17 +83,20 @@ export async function index(
   try {
     const shifts = await getAllShifts();
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(shifts),
-    });
+    return successResponse(
+      res,
+      200,
+      "Shifts retrieved successfully",
+      serializeBigInt(shifts)
+    );
   } catch (error) {
     console.error("Get shifts error:", error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -107,16 +116,19 @@ export async function show(
     const shift = await getShiftById(id);
 
     if (!shift) {
-      return res.status(404).json({
-        success: false,
-        message: "Shift not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Shift not found"
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(shift),
-    });
+    return successResponse(
+      res,
+      200,
+      "Shift retrieved successfully",
+      serializeBigInt(shift)
+    );
   } catch (error) {
     if (handleInvalidShiftId(error, res)) {
       return;
@@ -124,10 +136,11 @@ export async function show(
 
     console.error("Get shift error:", error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -146,10 +159,11 @@ export async function store(
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -167,11 +181,11 @@ export async function store(
       !startTime ||
       !endTime
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "companyId, name, startTime and endTime are required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "companyId, name, startTime and endTime are required"
+      );
     }
 
     const shift = await createShift({
@@ -189,36 +203,38 @@ export async function store(
       }),
     });
 
-    return res.status(201).json({
-      success: true,
-      message: "Shift created successfully",
-      data: serializeBigInt(shift),
-    });
+    return successResponse(
+      res,
+      201,
+      "Shift created successfully",
+      serializeBigInt(shift)
+    );
   } catch (error) {
     if (isPrismaKnownError(error)) {
       if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Shift name already exists for this company",
-        });
+        return errorResponse(
+          res,
+          409,
+          "Shift name already exists for this company"
+        );
       }
 
       if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid company reference",
-        });
+        return errorResponse(
+          res,
+          400,
+          "Invalid company reference"
+        );
       }
     }
 
     console.error("Create shift error:", error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -239,10 +255,11 @@ export async function update(
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -276,11 +293,11 @@ export async function update(
     };
 
     if (Object.keys(shiftData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "No fields provided for update",
-      });
+      return errorResponse(
+        res,
+        400,
+        "No fields provided for update"
+      );
     }
 
     const shift = await updateShift(
@@ -288,11 +305,12 @@ export async function update(
       shiftData
     );
 
-    return res.status(200).json({
-      success: true,
-      message: "Shift updated successfully",
-      data: serializeBigInt(shift),
-    });
+    return successResponse(
+      res,
+      200,
+      "Shift updated successfully",
+      serializeBigInt(shift)
+    );
   } catch (error) {
     if (handleInvalidShiftId(error, res)) {
       return;
@@ -300,34 +318,36 @@ export async function update(
 
     if (isPrismaKnownError(error)) {
       if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Shift name already exists for this company",
-        });
+        return errorResponse(
+          res,
+          409,
+          "Shift name already exists for this company"
+        );
       }
 
       if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid company reference",
-        });
+        return errorResponse(
+          res,
+          400,
+          "Invalid company reference"
+        );
       }
 
       if (error.code === "P2025") {
-        return res.status(404).json({
-          success: false,
-          message: "Shift not found",
-        });
+        return errorResponse(
+          res,
+          404,
+          "Shift not found"
+        );
       }
     }
 
     console.error("Update shift error:", error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }

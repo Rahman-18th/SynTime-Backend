@@ -11,6 +11,11 @@ import {
   markNotificationAsRead,
 } from "../services/notification.service.js";
 
+import {
+  errorResponse,
+  successResponse,
+} from "../utils/api-response.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -44,11 +49,11 @@ export async function myNotifications(
       req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     const notifications =
@@ -56,22 +61,23 @@ export async function myNotifications(
         BigInt(employeeId)
       );
 
-    return res.status(200).json({
-      success: true,
-      data:
-        serializeBigInt(notifications),
-    });
+    return successResponse(
+      res,
+      200,
+      "Notifications retrieved successfully",
+      serializeBigInt(notifications)
+    );
   } catch (error) {
     console.error(
       "Get notifications error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -84,11 +90,11 @@ export async function markAsRead(
       req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     const id =
@@ -101,28 +107,28 @@ export async function markAsRead(
       );
 
     if (result.count === 0) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Notification not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Notification not found"
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Notification marked as read",
-    });
+    return successResponse(
+      res,
+      200,
+      "Notification marked as read"
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid notification ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid notification ID"
+      );
     }
 
     console.error(
@@ -130,10 +136,10 @@ export async function markAsRead(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }

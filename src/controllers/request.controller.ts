@@ -25,6 +25,11 @@ import {
   getAttachmentsByRequest,
 } from "../services/request-attachment.service.js";
 
+import {
+  errorResponse,
+  successResponse,
+} from "../utils/api-response.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -56,17 +61,20 @@ export async function index(
   try {
     const requests = await getAllRequests();
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(requests),
-    });
+    return successResponse(
+      res,
+      200,
+      "Requests retrieved successfully",
+      serializeBigInt(requests)
+    );
   } catch (error) {
     console.error("Get requests error:", error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -77,36 +85,45 @@ export async function show(
   try {
     const id = parseId(req.params.id);
 
-    const request = await getRequestById(id);
+    const request =
+      await getRequestById(id);
 
     if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: "Request not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Request not found"
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(request),
-    });
+    return successResponse(
+      res,
+      200,
+      "Request retrieved successfully",
+      serializeBigInt(request)
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid request ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid request ID"
+      );
     }
 
-    console.error("Get request error:", error);
+    console.error(
+      "Get request error:",
+      error
+    );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -119,11 +136,11 @@ export async function myRequests(
       req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     const requests =
@@ -131,20 +148,23 @@ export async function myRequests(
         BigInt(employeeId)
       );
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(requests),
-    });
+    return successResponse(
+      res,
+      200,
+      "Employee requests retrieved successfully",
+      serializeBigInt(requests)
+    );
   } catch (error) {
     console.error(
       "Get employee requests error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -157,21 +177,22 @@ export async function store(
       req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     if (
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -187,11 +208,11 @@ export async function store(
       !endDate ||
       !reason
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "type, startDate, endDate and reason are required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "type, startDate, endDate and reason are required"
+      );
     }
 
     const allowedTypes = [
@@ -200,11 +221,14 @@ export async function store(
       "attendance_correction",
     ];
 
-    if (!allowedTypes.includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid request type",
-      });
+    if (
+      !allowedTypes.includes(type)
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid request type"
+      );
     }
 
     const parsedStartDate =
@@ -214,57 +238,74 @@ export async function store(
       new Date(endDate);
 
     if (
-      Number.isNaN(parsedStartDate.getTime()) ||
-      Number.isNaN(parsedEndDate.getTime())
+      Number.isNaN(
+        parsedStartDate.getTime()
+      ) ||
+      Number.isNaN(
+        parsedEndDate.getTime()
+      )
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid request date",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid request date"
+      );
     }
 
     if (
       parsedEndDate.getTime() <
       parsedStartDate.getTime()
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "endDate cannot be earlier than startDate",
-      });
+      return errorResponse(
+        res,
+        400,
+        "endDate cannot be earlier than startDate"
+      );
     }
 
-    const request = await createRequest({
-      employeeId: BigInt(employeeId),
-      type,
-      startDate: parsedStartDate,
-      endDate: parsedEndDate,
-      reason,
-    });
+    const request =
+      await createRequest({
+        employeeId:
+          BigInt(employeeId),
 
-    return res.status(201).json({
-      success: true,
-      message:
-        "Request submitted successfully",
-      data: serializeBigInt(request),
-    });
+        type,
+
+        startDate:
+          parsedStartDate,
+
+        endDate:
+          parsedEndDate,
+
+        reason,
+      });
+
+    return successResponse(
+      res,
+      201,
+      "Request submitted successfully",
+      serializeBigInt(request)
+    );
   } catch (error) {
     if (isPrismaKnownError(error)) {
       if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid employee reference",
-        });
+        return errorResponse(
+          res,
+          400,
+          "Invalid employee reference"
+        );
       }
     }
 
-    console.error("Create request error:", error);
+    console.error(
+      "Create request error:",
+      error
+    );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -273,26 +314,29 @@ export async function review(
   res: Response
 ) {
   try {
-    const id = parseId(req.params.id);
+    const id =
+      parseId(req.params.id);
 
     const reviewerId =
       req.user?.userId;
 
     if (!reviewerId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
+      return errorResponse(
+        res,
+        401,
+        "Unauthorized"
+      );
     }
 
     if (
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -309,31 +353,33 @@ export async function review(
       !status ||
       !allowedStatuses.includes(status)
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Status must be approved or rejected",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Status must be approved or rejected"
+      );
     }
 
     const existingRequest =
       await getRequestById(id);
 
     if (!existingRequest) {
-      return res.status(404).json({
-        success: false,
-        message: "Request not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Request not found"
+      );
     }
 
     if (
-      existingRequest.status !== "pending"
+      existingRequest.status !==
+      "pending"
     ) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "Request has already been reviewed",
-      });
+      return errorResponse(
+        res,
+        409,
+        "Request has already been reviewed"
+      );
     }
 
     const updatedRequest =
@@ -351,54 +397,55 @@ export async function review(
         }),
       });
 
-      const notificationTitle =
-  status === "approved"
-    ? "Request Approved"
-    : "Request Rejected";
+    const notificationTitle =
+      status === "approved"
+        ? "Request Approved"
+        : "Request Rejected";
 
-const notificationMessage =
-  status === "approved"
-    ? `Your ${existingRequest.type} request has been approved.`
-    : `Your ${existingRequest.type} request has been rejected.`;
+    const notificationMessage =
+      status === "approved"
+        ? `Your ${existingRequest.type} request has been approved.`
+        : `Your ${existingRequest.type} request has been rejected.`;
 
-await createNotification({
-  employeeId:
-    existingRequest.employeeId,
+    await createNotification({
+      employeeId:
+        existingRequest.employeeId,
 
-  title:
-    notificationTitle,
+      title:
+        notificationTitle,
 
-  message:
-    notificationMessage,
-
-  type:
-    "request_review",
-});
-
-    return res.status(200).json({
-      success: true,
       message:
-        `Request ${status} successfully`,
-      data:
-        serializeBigInt(updatedRequest),
+        notificationMessage,
+
+      type:
+        "request_review",
     });
+
+    return successResponse(
+      res,
+      200,
+      `Request ${status} successfully`,
+      serializeBigInt(updatedRequest)
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid request ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid request ID"
+      );
     }
 
     if (isPrismaKnownError(error)) {
       if (error.code === "P2025") {
-        return res.status(404).json({
-          success: false,
-          message: "Request not found",
-        });
+        return errorResponse(
+          res,
+          404,
+          "Request not found"
+        );
       }
     }
 
@@ -407,10 +454,11 @@ await createNotification({
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -423,11 +471,11 @@ export async function addAttachment(
       req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     const requestId =
@@ -439,30 +487,30 @@ export async function addAttachment(
       );
 
     if (!request) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Request not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Request not found"
+      );
     }
 
     if (
       request.employeeId !==
       BigInt(employeeId)
     ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "You cannot add attachments to this request",
-      });
+      return errorResponse(
+        res,
+        403,
+        "You cannot add attachments to this request"
+      );
     }
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Attachment file is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Attachment file is required"
+      );
     }
 
     const fileUrl =
@@ -484,26 +532,22 @@ export async function addAttachment(
           BigInt(req.file.size),
       });
 
-    return res.status(201).json({
-      success: true,
-      message:
-        "Attachment uploaded successfully",
-
-      data:
-        serializeBigInt(
-          attachment
-        ),
-    });
+    return successResponse(
+      res,
+      201,
+      "Attachment uploaded successfully",
+      serializeBigInt(attachment)
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid request ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid request ID"
+      );
     }
 
     console.error(
@@ -511,13 +555,14 @@ export async function addAttachment(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
+
 export async function attachments(
   req: AuthRequest,
   res: Response
@@ -530,10 +575,11 @@ export async function attachments(
       await getRequestById(id);
 
     if (!request) {
-      return res.status(404).json({
-        success: false,
-        message: "Request not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Request not found"
+      );
     }
 
     const roles =
@@ -552,31 +598,38 @@ export async function attachments(
       request.employeeId ===
         BigInt(employeeId);
 
-    if (!isAdminOrHr && !isOwner) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "You do not have permission to view these attachments",
-      });
+    if (
+      !isAdminOrHr &&
+      !isOwner
+    ) {
+      return errorResponse(
+        res,
+        403,
+        "You do not have permission to view these attachments"
+      );
     }
 
     const data =
-      await getAttachmentsByRequest(id);
+      await getAttachmentsByRequest(
+        id
+      );
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(data),
-    });
+    return successResponse(
+      res,
+      200,
+      "Request attachments retrieved successfully",
+      serializeBigInt(data)
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid request ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid request ID"
+      );
     }
 
     console.error(
@@ -584,10 +637,10 @@ export async function attachments(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }

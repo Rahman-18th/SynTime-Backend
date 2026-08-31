@@ -11,6 +11,10 @@ import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
 
+import {
+  errorResponse,
+  successResponse,
+} from "../utils/api-response.js";
 /*
 |--------------------------------------------------------------------------
 | Helpers
@@ -49,10 +53,11 @@ function handleInvalidScheduleId(
     error instanceof Error &&
     error.message === "INVALID_ID"
   ) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid schedule ID",
-    });
+    errorResponse(
+      res,
+      400,
+      "Invalid schedule ID"
+    );
 
     return true;
   }
@@ -74,20 +79,23 @@ export async function index(
     const schedules =
       await getAllSchedules();
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(schedules),
-    });
+    return successResponse(
+      res,
+      200,
+      "Schedules retrieved successfully",
+      serializeBigInt(schedules)
+    );
   } catch (error) {
     console.error(
       "Get schedules error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -108,16 +116,19 @@ export async function show(
       await getScheduleById(id);
 
     if (!schedule) {
-      return res.status(404).json({
-        success: false,
-        message: "Schedule not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Schedule not found"
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(schedule),
-    });
+    return successResponse(
+      res,
+      200,
+      "Schedule retrieved successfully",
+      serializeBigInt(schedule)
+    );
   } catch (error) {
     if (
       handleInvalidScheduleId(
@@ -133,10 +144,11 @@ export async function show(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -155,10 +167,11 @@ export async function store(
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -175,11 +188,11 @@ export async function store(
       !officeId ||
       !workDate
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "employeeId, shiftId, officeId and workDate are required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "employeeId, shiftId, officeId and workDate are required"
+      );
     }
 
     const allowedStatuses = [
@@ -192,10 +205,11 @@ export async function store(
       status !== undefined &&
       !allowedStatuses.includes(status)
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid schedule status",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid schedule status"
+      );
     }
 
     const schedule =
@@ -217,28 +231,28 @@ export async function store(
         }),
       });
 
-    return res.status(201).json({
-      success: true,
-      message:
-        "Schedule created successfully",
-      data: serializeBigInt(schedule),
-    });
+    return successResponse(
+      res,
+      201,
+      "Schedule created successfully",
+      serializeBigInt(schedule)
+    );
   } catch (error) {
     if (isPrismaKnownError(error)) {
       if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Employee already has a schedule for this date",
-        });
+        return errorResponse(
+          res,
+          409,
+          "Employee already has a schedule for this date"
+        );
       }
 
       if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid employee, shift, or office reference",
-        });
+        return errorResponse(
+          res,
+          400,
+          "Invalid employee, shift, or office reference"
+        );
       }
     }
 
@@ -247,10 +261,11 @@ export async function store(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -271,10 +286,11 @@ export async function update(
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -295,10 +311,11 @@ export async function update(
       status !== undefined &&
       !allowedStatuses.includes(status)
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid schedule status",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid schedule status"
+      );
     }
 
     const scheduleData = {
@@ -330,11 +347,11 @@ export async function update(
     if (
       Object.keys(scheduleData).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "No fields provided for update",
-      });
+      return errorResponse(
+        res,
+        400,
+        "No fields provided for update"
+      );
     }
 
     const schedule =
@@ -343,12 +360,12 @@ export async function update(
         scheduleData
       );
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Schedule updated successfully",
-      data: serializeBigInt(schedule),
-    });
+    return successResponse(
+      res,
+      200,
+      "Schedule updated successfully",
+      serializeBigInt(schedule)
+    );
   } catch (error) {
     if (
       handleInvalidScheduleId(
@@ -361,26 +378,27 @@ export async function update(
 
     if (isPrismaKnownError(error)) {
       if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Employee already has a schedule for this date",
-        });
+        return errorResponse(
+          res,
+          409,
+          "Employee already has a schedule for this date"
+        );
       }
 
       if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid employee, shift, or office reference",
-        });
+        return errorResponse(
+          res,
+          400,
+          "Invalid employee, shift, or office reference"
+        );
       }
 
       if (error.code === "P2025") {
-        return res.status(404).json({
-          success: false,
-          message: "Schedule not found",
-        });
+        return errorResponse(
+          res,
+          404,
+          "Schedule not found"
+        );
       }
     }
 
@@ -389,9 +407,10 @@ export async function update(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }

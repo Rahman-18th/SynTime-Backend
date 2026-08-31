@@ -12,6 +12,11 @@ import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
 
+import {
+  successResponse,
+  errorResponse,
+} from "../utils/api-response.js";
+
 /*
 |--------------------------------------------------------------------------
 | Helpers
@@ -50,10 +55,11 @@ function handleInvalidEmployeeId(
     error instanceof Error &&
     error.message === "INVALID_EMPLOYEE_ID"
   ) {
-    res.status(400).json({
-      success: false,
-      message: "Invalid employee ID",
-    });
+    errorResponse(
+      res,
+      400,
+      "Invalid employee ID"
+    );
 
     return true;
   }
@@ -75,20 +81,23 @@ export async function index(
     const employees =
       await getAllEmployees();
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(employees),
-    });
+    return successResponse(
+      res,
+      200,
+      "Employees retrieved successfully",
+      serializeBigInt(employees)
+    );
   } catch (error) {
     console.error(
       "Get employees error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -110,16 +119,19 @@ export async function show(
       await getEmployeeById(id);
 
     if (!employee) {
-      return res.status(404).json({
-        success: false,
-        message: "Employee not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Employee not found"
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(employee),
-    });
+    return successResponse(
+      res,
+      200,
+      "Employee retrieved successfully",
+      serializeBigInt(employee)
+    );
   } catch (error) {
     if (
       handleInvalidEmployeeId(
@@ -135,10 +147,11 @@ export async function show(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -157,10 +170,7 @@ export async function store(
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(res, 400, "Request body is required");
     }
 
     const {
@@ -185,11 +195,7 @@ export async function store(
       !firstName ||
       !email
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Required employee fields are missing",
-      });
+      return errorResponse(res, 400, "Required employee fields are missing");
     }
 
     const employeeData = {
@@ -232,40 +238,41 @@ export async function store(
         employeeData
       );
 
-    return res.status(201).json({
-      success: true,
-      message:
-        "Employee created successfully",
-      data: serializeBigInt(employee),
-    });
+   return successResponse(
+  res,
+  201,
+  "Employee created successfully",
+  serializeBigInt(employee)
+);
   } catch (error) {
     if (isPrismaKnownError(error)) {
-      if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Employee number or email already exists",
-        });
-      }
-
-      if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid company, department, or office reference",
-        });
-      }
-    }
-
-    console.error(
-      "Create employee error:",
-      error
+  if (error.code === "P2002") {
+    return errorResponse(
+      res,
+      409,
+      "Employee number or email already exists"
     );
+  }
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+  if (error.code === "P2003") {
+    return errorResponse(
+      res,
+      400,
+      "Invalid company, department, or office reference"
+    );
+  }
+}
+
+console.error(
+  "Create employee error:",
+  error
+);
+
+return errorResponse(
+  res,
+  500,
+  "Internal server error"
+);
   }
 }
 
@@ -348,11 +355,11 @@ export async function update(
     if (
       Object.keys(employeeData).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "No fields provided for update",
-      });
+     return errorResponse(
+  res,
+  400,
+  "No fields provided for update"
+);
     }
 
     const employee =
@@ -361,12 +368,12 @@ export async function update(
         employeeData
       );
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Employee updated successfully",
-      data: serializeBigInt(employee),
-    });
+    return successResponse(
+  res,
+  200,
+  "Employee updated successfully",
+  serializeBigInt(employee)
+);
   } catch (error) {
     if (
       handleInvalidEmployeeId(
@@ -378,39 +385,41 @@ export async function update(
     }
 
     if (isPrismaKnownError(error)) {
-      if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Employee number or email already exists",
-        });
-      }
-
-      if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid department or office reference",
-        });
-      }
-
-      if (error.code === "P2025") {
-        return res.status(404).json({
-          success: false,
-          message: "Employee not found",
-        });
-      }
-    }
-
-    console.error(
-      "Update employee error:",
-      error
+  if (error.code === "P2002") {
+    return errorResponse(
+      res,
+      409,
+      "Employee number or email already exists"
     );
+  }
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+  if (error.code === "P2003") {
+    return errorResponse(
+      res,
+      400,
+      "Invalid department or office reference"
+    );
+  }
+
+  if (error.code === "P2025") {
+    return errorResponse(
+      res,
+      404,
+      "Employee not found"
+    );
+  }
+
+  console.error(
+  "Update employee error:",
+  error
+);
+
+return errorResponse(
+  res,
+  500,
+  "Internal server error"
+);
+}
   }
 }
 
@@ -441,26 +450,25 @@ export async function updateStatus(
     const { status } = req.body;
 
     if (!status) {
-      return res.status(400).json({
-        success: false,
-        message: "Status is required",
-      });
-    }
+  return errorResponse(
+    res,
+    400,
+    "Status is required"
+  );
+}
 
     const allowedStatuses = [
       "active",
       "inactive",
     ];
 
-    if (
-      !allowedStatuses.includes(status)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid employee status. Use active or inactive.",
-      });
-    }
+    if (!allowedStatuses.includes(status)) {
+  return errorResponse(
+    res,
+    400,
+    "Invalid employee status. Use active or inactive."
+  );
+}
 
     const employee =
       await updateEmployeeStatus(
@@ -468,39 +476,32 @@ export async function updateStatus(
         status
       );
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Employee status updated successfully",
-      data: serializeBigInt(employee),
-    });
+    return successResponse(
+  res,
+  200,
+  "Employee status updated successfully",
+  serializeBigInt(employee)
+);
   } catch (error) {
-    if (
-      handleInvalidEmployeeId(
-        error,
-        res
-      )
-    ) {
-      return;
-    }
-
     if (isPrismaKnownError(error)) {
-      if (error.code === "P2025") {
-        return res.status(404).json({
-          success: false,
-          message: "Employee not found",
-        });
-      }
-    }
-
-    console.error(
-      "Update employee status error:",
-      error
+  if (error.code === "P2025") {
+    return errorResponse(
+      res,
+      404,
+      "Employee not found"
     );
+  }
+}
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+console.error(
+  "Update employee status error:",
+  error
+);
+
+return errorResponse(
+  res,
+  500,
+  "Internal server error"
+);
   }
 }

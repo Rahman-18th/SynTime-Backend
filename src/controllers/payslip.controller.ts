@@ -19,6 +19,11 @@ import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
 
+import {
+  errorResponse,
+  successResponse,
+} from "../utils/api-response.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -57,21 +62,23 @@ export async function index(
     const payslips =
       await getAllPayslips();
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(payslips),
-    });
+    return successResponse(
+      res,
+      200,
+      "Payslips retrieved successfully",
+      serializeBigInt(payslips)
+    );
   } catch (error) {
     console.error(
       "Get payslips error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -93,27 +100,29 @@ export async function show(
       await getPayslipById(id);
 
     if (!payslip) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Payslip not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Payslip not found"
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(payslip),
-    });
+    return successResponse(
+      res,
+      200,
+      "Payslip retrieved successfully",
+      serializeBigInt(payslip)
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid payslip ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid payslip ID"
+      );
     }
 
     console.error(
@@ -121,11 +130,11 @@ export async function show(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -144,11 +153,11 @@ export async function myPayslips(
       req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     const payslips =
@@ -156,21 +165,23 @@ export async function myPayslips(
         BigInt(employeeId)
       );
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(payslips),
-    });
+    return successResponse(
+      res,
+      200,
+      "Payslips retrieved successfully",
+      serializeBigInt(payslips)
+    );
   } catch (error) {
     console.error(
       "Get employee payslips error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -189,11 +200,11 @@ export async function store(
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -214,11 +225,11 @@ export async function store(
       totalIncome === undefined ||
       totalDeduction === undefined
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Required payslip fields are missing",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Required payslip fields are missing"
+      );
     }
 
     const month =
@@ -243,33 +254,33 @@ export async function store(
       Number.isNaN(parsedTotalIncome) ||
       Number.isNaN(parsedTotalDeduction)
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Payslip numeric fields must contain valid numbers",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Payslip numeric fields must contain valid numbers"
+      );
     }
 
     if (
       month < 1 ||
       month > 12
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "periodMonth must be between 1 and 12",
-      });
+      return errorResponse(
+        res,
+        400,
+        "periodMonth must be between 1 and 12"
+      );
     }
 
     if (
       year < 2000 ||
       year > 2100
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "periodYear is invalid",
-      });
+      return errorResponse(
+        res,
+        400,
+        "periodYear is invalid"
+      );
     }
 
     if (
@@ -277,22 +288,22 @@ export async function store(
       parsedTotalIncome < 0 ||
       parsedTotalDeduction < 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Payslip amounts cannot be negative",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Payslip amounts cannot be negative"
+      );
     }
 
     if (
       parsedTotalDeduction >
       parsedTotalIncome
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Total deduction cannot exceed total income",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Total deduction cannot exceed total income"
+      );
     }
 
     const allowedStatuses = [
@@ -304,11 +315,11 @@ export async function store(
       status !== undefined &&
       !allowedStatuses.includes(status)
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid payslip status",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid payslip status"
+      );
     }
 
     const payslip =
@@ -336,29 +347,28 @@ export async function store(
         }),
       });
 
-    return res.status(201).json({
-      success: true,
-      message:
-        "Payslip created successfully",
-      data:
-        serializeBigInt(payslip),
-    });
+    return successResponse(
+      res,
+      201,
+      "Payslip created successfully",
+      serializeBigInt(payslip)
+    );
   } catch (error) {
     if (isPrismaKnownError(error)) {
       if (error.code === "P2002") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Payslip already exists for this employee and period",
-        });
+        return errorResponse(
+          res,
+          409,
+          "Payslip already exists for this employee and period"
+        );
       }
 
       if (error.code === "P2003") {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid employee reference",
-        });
+        return errorResponse(
+          res,
+          400,
+          "Invalid employee reference"
+        );
       }
     }
 
@@ -367,11 +377,11 @@ export async function store(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -393,11 +403,11 @@ export async function update(
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -416,11 +426,11 @@ export async function update(
       status !== undefined &&
       !allowedStatuses.includes(status)
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid payslip status",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid payslip status"
+      );
     }
 
     const parsedData = {
@@ -447,11 +457,11 @@ export async function update(
     if (
       Object.keys(parsedData).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "No fields provided for update",
-      });
+      return errorResponse(
+        res,
+        400,
+        "No fields provided for update"
+      );
     }
 
     const numericValues = [
@@ -470,11 +480,41 @@ export async function update(
           value! < 0
       )
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Payslip amounts must be valid non-negative numbers",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Payslip amounts must be valid non-negative numbers"
+      );
+    }
+
+    const existingPayslip =
+      await getPayslipById(id);
+
+    if (!existingPayslip) {
+      return errorResponse(
+        res,
+        404,
+        "Payslip not found"
+      );
+    }
+
+    const finalTotalIncome =
+      parsedData.totalIncome ??
+      Number(existingPayslip.totalIncome);
+
+    const finalTotalDeduction =
+      parsedData.totalDeduction ??
+      Number(existingPayslip.totalDeduction);
+
+    if (
+      finalTotalDeduction >
+      finalTotalIncome
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Total deduction cannot exceed total income"
+      );
     }
 
     const payslip =
@@ -483,23 +523,22 @@ export async function update(
         parsedData
       );
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Payslip updated successfully",
-      data:
-        serializeBigInt(payslip),
-    });
+    return successResponse(
+      res,
+      200,
+      "Payslip updated successfully",
+      serializeBigInt(payslip)
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid payslip ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid payslip ID"
+      );
     }
 
     if (
@@ -507,11 +546,11 @@ export async function update(
       error.message ===
         "PAYSLIP_NOT_FOUND"
     ) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Payslip not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Payslip not found"
+      );
     }
 
     console.error(
@@ -519,10 +558,10 @@ export async function update(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }

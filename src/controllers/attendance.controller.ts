@@ -18,6 +18,11 @@ import {
   getTodayScheduleByEmployee,
 } from "../services/attendance.service.js";
 
+import {
+  errorResponse,
+  successResponse,
+} from "../utils/api-response.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -47,22 +52,26 @@ export async function index(
   res: Response
 ) {
   try {
-    const attendances = await getAllAttendances();
+    const attendances =
+      await getAllAttendances();
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(attendances),
-    });
+    return successResponse(
+      res,
+      200,
+      "Attendances retrieved successfully",
+      serializeBigInt(attendances)
+    );
   } catch (error) {
     console.error(
       "Get attendances error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -77,25 +86,29 @@ export async function show(
       await getAttendanceById(id);
 
     if (!attendance) {
-      return res.status(404).json({
-        success: false,
-        message: "Attendance not found",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Attendance not found"
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      data: serializeBigInt(attendance),
-    });
+    return successResponse(
+      res,
+      200,
+      "Attendance retrieved successfully",
+      serializeBigInt(attendance)
+    );
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "INVALID_ID"
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid attendance ID",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Invalid attendance ID"
+      );
     }
 
     console.error(
@@ -103,10 +116,11 @@ export async function show(
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
 
@@ -115,24 +129,26 @@ export async function clockIn(
   res: Response
 ) {
   try {
-    const employeeId = req.user?.employeeId;
+    const employeeId =
+      req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     if (
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -144,11 +160,11 @@ export async function clockIn(
       latitude === undefined ||
       longitude === undefined
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "latitude and longitude are required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "latitude and longitude are required"
+      );
     }
 
     const parsedEmployeeId =
@@ -164,38 +180,40 @@ export async function clockIn(
       );
 
     if (!schedule) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "No schedule found for today",
-      });
+      return errorResponse(
+        res,
+        404,
+        "No schedule found for today"
+      );
     }
 
-    if (schedule.status !== "scheduled") {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Attendance cannot be created for this schedule",
-      });
+    if (
+      schedule.status !== "scheduled"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Attendance cannot be created for this schedule"
+      );
     }
 
     if (schedule.attendance) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "Employee has already clocked in today",
-      });
+      return errorResponse(
+        res,
+        409,
+        "Employee has already clocked in today"
+      );
     }
 
     if (
       schedule.office.latitude === null ||
       schedule.office.longitude === null
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Office location is not configured",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Office location is not configured"
+      );
     }
 
     const employeeLatitude =
@@ -208,11 +226,11 @@ export async function clockIn(
       Number.isNaN(employeeLatitude) ||
       Number.isNaN(employeeLongitude)
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Latitude and longitude must be valid numbers",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Latitude and longitude must be valid numbers"
+      );
     }
 
     if (
@@ -221,18 +239,22 @@ export async function clockIn(
       employeeLongitude < -180 ||
       employeeLongitude > 180
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Latitude or longitude is out of range",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Latitude or longitude is out of range"
+      );
     }
 
     const officeLatitude =
-      Number(schedule.office.latitude);
+      Number(
+        schedule.office.latitude
+      );
 
     const officeLongitude =
-      Number(schedule.office.longitude);
+      Number(
+        schedule.office.longitude
+      );
 
     const distanceMeters =
       calculateDistanceMeters(
@@ -245,23 +267,25 @@ export async function clockIn(
     const allowedRadius =
       schedule.office.allowedRadiusMeters;
 
-    if (distanceMeters > allowedRadius) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "You are outside the allowed office radius",
-        data: {
-          distanceMeters:
-            Math.round(distanceMeters * 100) /
-            100,
-
-          allowedRadiusMeters:
-            allowedRadius,
-        },
-      });
+    if (
+      distanceMeters >
+      allowedRadius
+    ) {
+      return errorResponse(
+  res,
+  403,
+  "You are outside the allowed office radius",
+  {
+    distanceMeters:
+      Math.round(distanceMeters * 100) / 100,
+    allowedRadiusMeters:
+      allowedRadius,
+  }
+);
     }
 
-    const now = new Date();
+    const now =
+      new Date();
 
     const attendanceStatus =
       determineAttendanceStatus(
@@ -272,31 +296,45 @@ export async function clockIn(
 
     const attendance =
       await clockInAttendance({
-        scheduleId: schedule.id,
-        checkInAt: now,
-        status: attendanceStatus,
+        scheduleId:
+          schedule.id,
+
+        checkInAt:
+          now,
+
+        status:
+          attendanceStatus,
+
         checkInLatitude:
           employeeLatitude,
+
         checkInLongitude:
           employeeLongitude,
+
         checkInDistanceMeters:
           distanceMeters,
       });
 
-    return res.status(201).json({
-      success: true,
-      message: "Clock in successful",
-      data: serializeBigInt(attendance),
-    });
+    return successResponse(
+      res,
+      201,
+      "Clock in successful",
+      serializeBigInt(attendance)
+    );
   } catch (error) {
-    console.error("Clock in error:", error);
+    console.error(
+      "Clock in error:",
+      error
+    );
 
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
+
 export async function clockOut(
   req: AuthRequest,
   res: Response
@@ -306,22 +344,22 @@ export async function clockOut(
       req.user?.employeeId;
 
     if (!employeeId) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This user is not linked to an employee",
-      });
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
     }
 
     if (
       !req.body ||
       Object.keys(req.body).length === 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Request body is required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
     }
 
     const {
@@ -333,11 +371,11 @@ export async function clockOut(
       latitude === undefined ||
       longitude === undefined
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "latitude and longitude are required",
-      });
+      return errorResponse(
+        res,
+        400,
+        "latitude and longitude are required"
+      );
     }
 
     const today =
@@ -350,41 +388,43 @@ export async function clockOut(
       );
 
     if (!schedule) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "No schedule found for today",
-      });
+      return errorResponse(
+        res,
+        404,
+        "No schedule found for today"
+      );
     }
 
     const attendance =
       schedule.attendance;
 
     if (!attendance) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Employee has not clocked in today",
-      });
+      return errorResponse(
+        res,
+        404,
+        "Employee has not clocked in today"
+      );
     }
 
-    if (attendance.checkOutAt) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "Employee has already clocked out",
-      });
+    if (
+      attendance.checkOutAt
+    ) {
+      return errorResponse(
+        res,
+        409,
+        "Employee has already clocked out"
+      );
     }
 
     if (
       schedule.office.latitude === null ||
       schedule.office.longitude === null
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Office location is not configured",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Office location is not configured"
+      );
     }
 
     const employeeLatitude =
@@ -397,11 +437,11 @@ export async function clockOut(
       Number.isNaN(employeeLatitude) ||
       Number.isNaN(employeeLongitude)
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Latitude and longitude must be valid numbers",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Latitude and longitude must be valid numbers"
+      );
     }
 
     if (
@@ -410,18 +450,22 @@ export async function clockOut(
       employeeLongitude < -180 ||
       employeeLongitude > 180
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Latitude or longitude is out of range",
-      });
+      return errorResponse(
+        res,
+        400,
+        "Latitude or longitude is out of range"
+      );
     }
 
     const officeLatitude =
-      Number(schedule.office.latitude);
+      Number(
+        schedule.office.latitude
+      );
 
     const officeLongitude =
-      Number(schedule.office.longitude);
+      Number(
+        schedule.office.longitude
+      );
 
     const distanceMeters =
       calculateDistanceMeters(
@@ -434,54 +478,57 @@ export async function clockOut(
     const allowedRadius =
       schedule.office.allowedRadiusMeters;
 
-    if (distanceMeters > allowedRadius) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "You are outside the allowed office radius",
-        data: {
-          distanceMeters:
-            Math.round(distanceMeters * 100) /
-            100,
-
-          allowedRadiusMeters:
-            allowedRadius,
-        },
-      });
+    if (
+      distanceMeters >
+      allowedRadius
+    ) {
+      return errorResponse(
+        res,
+        403,
+        `You are outside the allowed office radius. Distance: ${
+          Math.round(
+            distanceMeters * 100
+          ) / 100
+        }m, allowed: ${allowedRadius}m`
+      );
     }
 
     const updatedAttendance =
       await clockOutAttendance(
         attendance.id,
         {
-          checkOutAt: new Date(),
+          checkOutAt:
+            new Date(),
+
           checkOutLatitude:
             employeeLatitude,
+
           checkOutLongitude:
             employeeLongitude,
+
           checkOutDistanceMeters:
             distanceMeters,
         }
       );
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Clock out successful",
-      data: serializeBigInt(
+    return successResponse(
+      res,
+      200,
+      "Clock out successful",
+      serializeBigInt(
         updatedAttendance
-      ),
-    });
+      )
+    );
   } catch (error) {
     console.error(
       "Clock out error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Internal server error",
-    });
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
   }
 }
