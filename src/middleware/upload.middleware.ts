@@ -61,15 +61,36 @@ const allowedMimeTypes = [
   "image/png",
 ];
 
+const allowedExtensions = [
+  ".pdf",
+  ".jpg",
+  ".jpeg",
+  ".png",
+];
+
 const fileFilter: multer.Options["fileFilter"] = (
   req,
   file,
   cb
 ) => {
-  if (
+  const extension =
+    path
+      .extname(file.originalname)
+      .toLowerCase();
+
+  const isMimeAllowed =
     allowedMimeTypes.includes(
       file.mimetype
-    )
+    );
+
+  const isExtensionAllowed =
+    allowedExtensions.includes(
+      extension
+    );
+
+  if (
+    isMimeAllowed ||
+    isExtensionAllowed
   ) {
     cb(null, true);
     return;
@@ -81,6 +102,7 @@ const fileFilter: multer.Options["fileFilter"] = (
     )
   );
 };
+
 
 export const uploadRequestAttachment =
   multer({

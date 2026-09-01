@@ -1,6 +1,12 @@
 import express from "express";
+import type {
+  Request,
+  Response,
+  NextFunction,
+} from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import multer from "multer";
 import prisma from "./config/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
@@ -71,6 +77,63 @@ app.get("/api/health/db", async (req, res) => {
     });
   }
 });
+
+app.use(
+  (
+    error: unknown,
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Attachment file must not exceed 5 MB",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "Only PDF, JPG, JPEG, and PNG files are allowed"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    next(error);
+  }
+);
+
+app.use(
+  (
+    error: unknown,
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    console.error(
+      "Unhandled error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Internal server error",
+    });
+  }
+);
 
 app.listen(PORT, () => {
   console.log(`SynTime API running on port ${PORT}`);

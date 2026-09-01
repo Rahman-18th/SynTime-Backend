@@ -1,31 +1,59 @@
 import { Router } from "express";
 
 import {
-  clockIn,
-  clockOut,
-  getMyAttendanceHistory,
-  index,
-  show,
-} from "../controllers/attendance.controller.js";
-
-import {
   authenticateToken,
-  
 } from "../middleware/auth.middleware.js";
 
 import {
   authorizeRoles,
 } from "../middleware/role.middleware.js";
 
+import {
+  index,
+  show,
+  showBySchedule,
+  getClockStatus,
+  clockIn,
+  clockOut,
+  getMyAttendanceHistory,
+} from "../controllers/attendance.controller.js";
+
 const router = Router();
 
 router.use(authenticateToken);
 
+// =========================
+// EMPLOYEE
+// =========================
+
+router.get(
+  "/clock-status",
+  authorizeRoles("employee"),
+  getClockStatus
+);
+
 router.get(
   "/my",
-  authenticateToken,
+  authorizeRoles("employee"),
   getMyAttendanceHistory
 );
+
+router.post(
+  "/clock-in",
+  authorizeRoles("employee"),
+  clockIn
+);
+
+router.patch(
+  "/clock-out",
+  authorizeRoles("employee"),
+  clockOut
+);
+
+// =========================
+// ADMIN / HR
+// =========================
+
 router.get(
   "/",
   authorizeRoles("admin", "hr"),
@@ -33,20 +61,16 @@ router.get(
 );
 
 router.get(
+  "/schedule/:scheduleId",
+  authorizeRoles("admin", "hr"),
+  showBySchedule
+);
+
+// WAJIB PALING BAWAH
+router.get(
   "/:id",
   authorizeRoles("admin", "hr"),
   show
-);
-
-
-router.post(
-  "/clock-in",
-  clockIn
-);
-
-router.patch(
-  "/clock-out",
-  clockOut
 );
 
 export default router;

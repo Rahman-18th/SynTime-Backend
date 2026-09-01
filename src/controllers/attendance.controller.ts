@@ -125,6 +125,280 @@ export async function show(
   }
 }
 
+export async function showBySchedule(
+  req: Request,
+  res: Response
+) {
+  try {
+    const scheduleId =
+      parseId(
+        req.params.scheduleId
+      );
+
+    const attendance =
+      await getAttendanceBySchedule(
+        scheduleId
+      );
+
+    if (!attendance) {
+      return errorResponse(
+        res,
+        404,
+        "Attendance not found for this schedule"
+      );
+    }
+
+    return successResponse(
+      res,
+      200,
+      "Attendance retrieved successfully",
+      serializeBigInt(attendance)
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_ID"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid schedule ID"
+      );
+    }
+
+    console.error(
+      "Get attendance by schedule error:",
+      error
+    );
+
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
+  }
+}
+
+export async function getClockStatus(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const employeeId =
+      req.user?.employeeId;
+
+    if (!employeeId) {
+      return errorResponse(
+        res,
+        403,
+        "This user is not linked to an employee"
+      );
+    }
+
+    const today =
+      getTodayWorkDate();
+
+    const schedule =
+      await getTodayScheduleByEmployee(
+        BigInt(employeeId),
+        today
+      );
+
+    if (!schedule) {
+      return errorResponse(
+        res,
+        404,
+        "No schedule found for today"
+      );
+    }
+
+    const attendance =
+      schedule.attendance;
+
+    const hasCheckedIn =
+      attendance?.checkInAt != null;
+
+    const hasCheckedOut =
+      attendance?.checkOutAt != null;
+
+    let attendanceStatus =
+      "Ready to Clock In";
+
+    if (
+      hasCheckedIn &&
+      !hasCheckedOut
+    ) {
+      attendanceStatus =
+        "Ready to Clock Out";
+    }
+
+    if (hasCheckedOut) {
+      attendanceStatus =
+        "Attendance Completed";
+    }
+
+    function formatTime(
+      value: Date | null | undefined
+    ) {
+      if (!value) {
+        return "--:--";
+      }
+
+      const offsetMinutes =
+        Number(
+          process.env
+            .TIMEZONE_OFFSET_MINUTES ??
+            420
+        );
+
+      const local =
+        new Date(
+          value.getTime() +
+            offsetMinutes *
+              60 *
+              1000
+        );
+
+      const hours =
+        local
+          .getUTCHours()
+          .toString()
+          .padStart(2, "0");
+
+      const minutes =
+        local
+          .getUTCMinutes()
+          .toString()
+          .padStart(2, "0");
+
+      return `${hours}:${minutes}`;
+    }
+
+    function calculateTotalHours() {
+      if (!attendance?.checkInAt) {
+        return "--";
+      }
+
+      const end =
+        attendance.checkOutAt ??
+        new Date();
+
+      const totalMinutes =
+        Math.max(
+          0,
+          Math.floor(
+            (
+              end.getTime() -
+              attendance
+                .checkInAt
+                .getTime()
+            ) /
+              (1000 * 60)
+          )
+        );
+
+      const hours =
+        Math.floor(
+          totalMinutes / 60
+        );
+
+      const minutes =
+        totalMinutes % 60;
+
+      return `${hours}h ${minutes
+        .toString()
+        .padStart(2, "0")}m`;
+    }
+
+    return successResponse(
+      res,
+      200,
+      "Clock status retrieved successfully",
+      {
+        employeeName: [
+          schedule.employee.firstName,
+          schedule.employee.lastName,
+        ]
+          .filter(Boolean)
+          .join(" "),
+
+        attendanceStatus,
+
+        shiftName:
+          schedule.shift.name,
+
+        shiftTime:
+          `${formatTime(
+            schedule.shift.startTime
+          )} - ${formatTime(
+            schedule.shift.endTime
+          )}`,
+
+        checkInTime:
+          formatTime(
+            attendance?.checkInAt
+          ),
+
+        checkOutTime:
+          formatTime(
+            attendance?.checkOutAt
+          ),
+
+        totalHours:
+          calculateTotalHours(),
+
+        office: {
+          name:
+            schedule.office.name,
+
+          address:
+            schedule.office.address ??
+            "",
+
+          latitude:
+            schedule.office.latitude !==
+            null
+              ? Number(
+                  schedule.office
+                    .latitude
+                )
+              : null,
+
+          longitude:
+            schedule.office.longitude !==
+            null
+              ? Number(
+                  schedule.office
+                    .longitude
+                )
+              : null,
+
+          allowedRadiusMeters:
+            schedule.office
+              .allowedRadiusMeters,
+        },
+
+        hasCheckedIn,
+        hasCheckedOut,
+
+        attendanceRecordStatus:
+          attendance?.status ?? null,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Get clock status error:",
+      error
+    );
+
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
+  }
+}
+
 export async function clockIn(
   req: AuthRequest,
   res: Response
