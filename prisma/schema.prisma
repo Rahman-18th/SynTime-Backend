@@ -295,3 +295,15 @@ model Notification {
 
   @@map("notifications")
 }
+
+model Announcement {
+  id          BigInt   @id @default(autoincrement())
+  title       String
+  message     String
+  priority    String   @default("normal")
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("announcements")
+}
