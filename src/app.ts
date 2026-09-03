@@ -20,6 +20,9 @@ import payslipRoutes from "./routes/payslip.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import announcementRoutes from "./routes/announcement.routes.js";
+import companyRoutes from "./routes/company.routes.js";
+import departmentRoutes from "./routes/department.routes.js";
+import officeRoutes from "./routes/office.routes.js";
 
 dotenv.config();
 
@@ -47,7 +50,10 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/payslips", payslipRoutes);
 app.use("/api/profile",profileRoutes);
 app.use("/api/dashboard",dashboardRoutes);
-app.use("/api/announcements",announcementRoutes,);
+app.use("/api/announcements",announcementRoutes);
+app.use("/api/companies", companyRoutes);
+app.use("/api/departments", departmentRoutes);
+app.use("/api/offices", officeRoutes);  
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
