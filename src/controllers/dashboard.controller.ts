@@ -1,10 +1,13 @@
-import type { Response } from "express";
+import type {
+  Response,
+} from "express";
 
 import type {
   AuthRequest,
 } from "../middleware/auth.middleware.js";
 
 import {
+  getAdminDashboard,
   getEmployeeDashboard,
 } from "../services/dashboard.service.js";
 
@@ -12,6 +15,12 @@ import {
   errorResponse,
   successResponse,
 } from "../utils/api-response.js";
+
+/*
+|--------------------------------------------------------------------------
+| Employee Dashboard
+|--------------------------------------------------------------------------
+*/
 
 export async function myDashboard(
   req: AuthRequest,
@@ -50,7 +59,41 @@ export async function myDashboard(
     );
   } catch (error) {
     console.error(
-      "Get dashboard error:",
+      "Get employee dashboard error:",
+      error
+    );
+
+    return errorResponse(
+      res,
+      500,
+      "Internal server error"
+    );
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Admin Dashboard
+|--------------------------------------------------------------------------
+*/
+
+export async function adminDashboard(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const dashboard =
+      await getAdminDashboard();
+
+    return successResponse(
+      res,
+      200,
+      "Admin dashboard retrieved successfully",
+      dashboard
+    );
+  } catch (error) {
+    console.error(
+      "Get admin dashboard error:",
       error
     );
 
