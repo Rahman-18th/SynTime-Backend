@@ -1,4 +1,6 @@
-import { Router } from "express";
+import {
+  Router,
+} from "express";
 
 import {
   index,
@@ -8,20 +10,87 @@ import {
   updateStatus,
 } from "../controllers/employee.controller.js";
 
-import { authenticateToken } from "../middleware/auth.middleware.js";
-import { authorizeRoles } from "../middleware/role.middleware.js";
+import {
+  createAccount,
+  resetPassword,
+  updateAccountStatus,
+} from "../controllers/employee-account.controller.js";
 
-const router = Router();
+import {
+  authenticateToken,
+} from "../middleware/auth.middleware.js";
+
+import {
+  authorizeRoles,
+} from "../middleware/role.middleware.js";
+
+const router =
+  Router();
+
+/*
+|--------------------------------------------------------------------------
+| Authentication + Authorization
+|--------------------------------------------------------------------------
+*/
 
 router.use(
   authenticateToken,
-  authorizeRoles("admin", "hr")
+  authorizeRoles(
+    "admin",
+    "hr"
+  )
 );
 
-router.get("/", index);
-router.get("/:id", show);
-router.post("/", store);
-router.put("/:id", update);
-router.patch("/:id/status", updateStatus);
+/*
+|--------------------------------------------------------------------------
+| Employee Account
+|--------------------------------------------------------------------------
+*/
+
+router.post(
+  "/:id/account",
+  createAccount
+);
+
+router.post(
+  "/:id/account/reset-password",
+  resetPassword
+);
+
+router.patch(
+  "/:id/account/status",
+  updateAccountStatus
+);
+
+/*
+|--------------------------------------------------------------------------
+| Employee
+|--------------------------------------------------------------------------
+*/
+
+router.get(
+  "/",
+  index
+);
+
+router.get(
+  "/:id",
+  show
+);
+
+router.post(
+  "/",
+  store
+);
+
+router.put(
+  "/:id",
+  update
+);
+
+router.patch(
+  "/:id/status",
+  updateStatus
+);
 
 export default router;
