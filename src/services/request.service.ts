@@ -1,28 +1,68 @@
 import prisma from "../config/prisma.js";
 
+/*
+|--------------------------------------------------------------------------
+| Shared Includes
+|--------------------------------------------------------------------------
+*/
+
+const requestInclude = {
+  employee: true,
+
+  reviewer: {
+    select: {
+      id: true,
+      employeeId: true,
+      email: true,
+      isActive: true,
+      lastLoginAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
+
+  attachments: true,
+} as const;
+
+/*
+|--------------------------------------------------------------------------
+| Get All Requests
+|--------------------------------------------------------------------------
+*/
+
 export async function getAllRequests() {
   return prisma.request.findMany({
-    include: {
-      employee: true,
-      reviewer: true,
-      attachments: true,
-    },
+    include: requestInclude,
+
     orderBy: {
       submittedAt: "desc",
     },
   });
 }
 
-export async function getRequestById(id: bigint) {
+/*
+|--------------------------------------------------------------------------
+| Get Request By ID
+|--------------------------------------------------------------------------
+*/
+
+export async function getRequestById(
+  id: bigint
+) {
   return prisma.request.findUnique({
-    where: { id },
-    include: {
-      employee: true,
-      reviewer: true,
-      attachments: true,
+    where: {
+      id,
     },
+
+    include: requestInclude,
   });
 }
+
+/*
+|--------------------------------------------------------------------------
+| Get Employee Requests
+|--------------------------------------------------------------------------
+*/
 
 export async function getRequestsByEmployee(
   employeeId: bigint
@@ -31,34 +71,72 @@ export async function getRequestsByEmployee(
     where: {
       employeeId,
     },
+
     include: {
-      reviewer: true,
+      reviewer: {
+        select: {
+          id: true,
+          employeeId: true,
+          email: true,
+          isActive: true,
+          lastLoginAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
+
       attachments: true,
     },
+
     orderBy: {
       submittedAt: "desc",
     },
   });
 }
 
-export async function createRequest(data: {
-  employeeId: bigint;
-  type: string;
-  startDate: Date;
-  endDate: Date;
-  reason: string;
-}) {
+/*
+|--------------------------------------------------------------------------
+| Create Request
+|--------------------------------------------------------------------------
+*/
+
+export async function createRequest(
+  data: {
+    employeeId: bigint;
+    type: string;
+    startDate: Date;
+    endDate: Date;
+    reason: string;
+  }
+) {
   return prisma.request.create({
     data: {
-      employeeId: data.employeeId,
-      type: data.type,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      reason: data.reason,
-      status: "pending",
+      employeeId:
+        data.employeeId,
+
+      type:
+        data.type,
+
+      startDate:
+        data.startDate,
+
+      endDate:
+        data.endDate,
+
+      reason:
+        data.reason,
+
+      status:
+        "pending",
     },
   });
 }
+
+/*
+|--------------------------------------------------------------------------
+| Review Request
+|--------------------------------------------------------------------------
+*/
 
 export async function reviewRequest(
   id: bigint,
@@ -70,14 +148,24 @@ export async function reviewRequest(
   }
 ) {
   return prisma.request.update({
-    where: { id },
-    data: {
-      reviewedBy: data.reviewedBy,
-      status: data.status,
-      reviewedAt: data.reviewedAt,
+    where: {
+      id,
+    },
 
-      ...(data.reviewNote !== undefined && {
-        reviewNote: data.reviewNote,
+    data: {
+      reviewedBy:
+        data.reviewedBy,
+
+      status:
+        data.status,
+
+      reviewedAt:
+        data.reviewedAt,
+
+      ...(data.reviewNote !==
+        undefined && {
+        reviewNote:
+          data.reviewNote,
       }),
     },
   });
