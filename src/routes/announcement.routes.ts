@@ -17,6 +17,10 @@ import {
   authorizeRoles,
 } from "../middleware/role.middleware.js";
 
+import {
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
+
 const router = Router();
 
 router.use(authenticateToken);
@@ -35,46 +39,31 @@ router.get(
 // Admin / HR
 router.get(
   "/",
-  authorizeRoles(
-    "admin",
-    "hr",
-  ),
+  authorizePermission("announcements.view"),
   index,
 );
 
 router.post(
   "/",
-  authorizeRoles(
-    "admin",
-    "hr",
-  ),
+  authorizePermission("announcements.create"),
   store,
 );
 
 router.get(
   "/:id",
-  authorizeRoles(
-    "admin",
-    "hr",
-  ),
+  authorizePermission("announcements.view"),
   show,
 );
 
 router.put(
   "/:id",
-  authorizeRoles(
-    "admin",
-    "hr",
-  ),
+  authorizePermission("announcements.update"),
   update,
 );
 
 router.delete(
   "/:id",
-  authorizeRoles(
-    "admin",
-    "hr",
-  ),
+  authorizePermission("announcements.update"),
   destroy,
 );
 

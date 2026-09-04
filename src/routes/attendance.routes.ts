@@ -9,6 +9,10 @@ import {
 } from "../middleware/role.middleware.js";
 
 import {
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
+
+import {
   index,
   show,
   showBySchedule,
@@ -56,20 +60,20 @@ router.patch(
 
 router.get(
   "/",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("attendance.view"),
   index
 );
 
 router.get(
   "/schedule/:scheduleId",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("attendance.view"),
   showBySchedule
 );
 
 // WAJIB PALING BAWAH
 router.get(
   "/:id",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("attendance.view"),
   show
 );
 

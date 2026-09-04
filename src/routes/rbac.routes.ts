@@ -18,8 +18,8 @@ import {
 } from "../middleware/auth.middleware.js";
 
 import {
-  authorizeRoles,
-} from "../middleware/role.middleware.js";
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
 
 const router =
   Router();
@@ -31,8 +31,7 @@ const router =
 */
 
 router.use(
-  authenticateToken,
-  authorizeRoles("admin")
+  authenticateToken
 );
 
 /*
@@ -43,11 +42,13 @@ router.use(
 
 router.get(
   "/roles",
+  authorizePermission("rbac.view"),
   rolesIndex
 );
 
 router.get(
   "/roles/:id",
+  authorizePermission("rbac.view"),
   roleShow
 );
 
@@ -59,6 +60,7 @@ router.get(
 
 router.get(
   "/permissions",
+  authorizePermission("rbac.view"),
   permissionsIndex
 );
 
@@ -70,11 +72,13 @@ router.get(
 
 router.post(
   "/roles/:roleId/permissions/:permissionId",
+  authorizePermission("rbac.manage"),
   assignPermission
 );
 
 router.delete(
   "/roles/:roleId/permissions/:permissionId",
+  authorizePermission("rbac.manage"),
   removePermission
 );
 
@@ -86,6 +90,7 @@ router.delete(
 
 router.get(
   "/users",
+  authorizePermission("rbac.view"),
   usersIndex
 );
 
@@ -97,11 +102,13 @@ router.get(
 
 router.post(
   "/users/:userId/roles/:roleId",
+  authorizePermission("rbac.manage"),
   assignRole
 );
 
 router.delete(
   "/users/:userId/roles/:roleId",
+  authorizePermission("rbac.manage"),
   removeRole
 );
 

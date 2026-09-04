@@ -8,18 +8,35 @@ import {
 } from "../controllers/schedule.controller.js";
 
 import { authenticateToken } from "../middleware/auth.middleware.js";
-import { authorizeRoles } from "../middleware/role.middleware.js";
+import {
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
 
 const router = Router();
 
 router.use(
-  authenticateToken,
-  authorizeRoles("admin", "hr")
+  authenticateToken
 );
 
-router.get("/", index);
-router.get("/:id", show);
-router.post("/", store);
-router.put("/:id", update);
+router.get(
+  "/",
+  authorizePermission("master_data.view"),
+  index
+);
+router.get(
+  "/:id",
+  authorizePermission("master_data.view"),
+  show
+);
+router.post(
+  "/",
+  authorizePermission("master_data.create"),
+  store
+);
+router.put(
+  "/:id",
+  authorizePermission("master_data.update"),
+  update
+);
 
 export default router;

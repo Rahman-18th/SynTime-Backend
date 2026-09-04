@@ -19,6 +19,10 @@ import {
 } from "../middleware/role.middleware.js";
 
 import {
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
+
+import {
   uploadRequestAttachment,
 } from "../middleware/upload.middleware.js";
 
@@ -42,19 +46,19 @@ router.post(
 
 router.get(
   "/",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("requests.view"),
   index
 );
 
 router.get(
   "/:id",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("requests.view"),
   show
 );
 
 router.patch(
   "/:id/review",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("requests.review"),
   review
 );
 

@@ -14,8 +14,8 @@ import {
 } from "../middleware/auth.middleware.js";
 
 import {
-  authorizeRoles,
-} from "../middleware/role.middleware.js";
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
 
 const router =
   Router();
@@ -26,35 +26,25 @@ router.use(
 
 router.get(
   "/",
-  authorizeRoles(
-    "admin",
-    "hr"
-  ),
+  authorizePermission("master_data.view"),
   index
 );
 
 router.get(
   "/:id",
-  authorizeRoles(
-    "admin",
-    "hr"
-  ),
+  authorizePermission("master_data.view"),
   show
 );
 
 router.post(
   "/",
-  authorizeRoles(
-    "admin"
-  ),
+  authorizePermission("master_data.create"),
   store
 );
 
 router.put(
   "/:id",
-  authorizeRoles(
-    "admin"
-  ),
+  authorizePermission("master_data.update"),
   update
 );
 

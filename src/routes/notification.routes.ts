@@ -17,6 +17,10 @@ import {
   authorizeRoles,
 } from "../middleware/role.middleware.js";
 
+import {
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
+
 const router =
   Router();
 
@@ -54,19 +58,13 @@ router.patch(
 
 router.get(
   "/",
-  authorizeRoles(
-    "admin",
-    "hr"
-  ),
+  authorizePermission("notifications.view"),
   index
 );
 
 router.post(
   "/",
-  authorizeRoles(
-    "admin",
-    "hr"
-  ),
+  authorizePermission("notifications.create"),
   store
 );
 

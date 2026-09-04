@@ -16,6 +16,10 @@ import {
   authorizeRoles,
 } from "../middleware/role.middleware.js";
 
+import {
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
+
 const router = Router();
 
 router.use(authenticateToken);
@@ -28,25 +32,25 @@ router.get(
 
 router.get(
   "/",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("payslips.view"),
   index
 );
 
 router.post(
   "/",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("payslips.create"),
   store
 );
 
 router.get(
   "/:id",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("payslips.view"),
   show
 );
 
 router.put(
   "/:id",
-  authorizeRoles("admin", "hr"),
+  authorizePermission("payslips.update"),
   update
 );
 

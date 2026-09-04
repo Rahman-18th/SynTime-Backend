@@ -11,6 +11,10 @@ import {
 } from "../middleware/role.middleware.js";
 
 import {
+  authorizePermission,
+} from "../middleware/permission.middleware.js";
+
+import {
   myDashboard,
   adminDashboard,
 } from "../controllers/dashboard.controller.js";
@@ -44,10 +48,7 @@ router.get(
 
 router.get(
   "/admin",
-  authorizeRoles(
-    "admin",
-    "hr"
-  ),
+  authorizePermission("dashboard.view"),
   adminDashboard
 );
 
