@@ -23,6 +23,7 @@ import announcementRoutes from "./routes/announcement.routes.js";
 import companyRoutes from "./routes/company.routes.js";
 import departmentRoutes from "./routes/department.routes.js";
 import officeRoutes from "./routes/office.routes.js";
+import rbacRoutes from "./routes/rbac.routes.js";
 
 dotenv.config();
 
@@ -54,6 +55,7 @@ app.use("/api/announcements",announcementRoutes);
 app.use("/api/companies", companyRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/offices", officeRoutes);  
+app.use("/api/rbac", rbacRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
