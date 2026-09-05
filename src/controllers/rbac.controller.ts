@@ -6,15 +6,19 @@ import type {
 import {
   assignPermissionToRole,
   assignRoleToUser,
+  countActiveUsersWithRole,
   getAllPermissions,
   getAllRoles,
   getAllUsersWithRoles,
+  getPermissionByName,
   getRoleById,
+  getRoleByName,
   permissionExists,
   removePermissionFromRole,
   removeRoleFromUser,
   roleExists,
   userExists,
+  userHasRole,
 } from "../services/rbac.service.js";
 
 import {
@@ -306,7 +310,6 @@ export async function assignPermission(
 | DELETE /roles/:roleId/permissions/:permissionId
 |--------------------------------------------------------------------------
 */
-
 export async function removePermission(
   req: Request,
   res: Response
@@ -321,6 +324,68 @@ export async function removePermission(
       parseId(
         req.params.permissionId
       );
+
+    const [
+      role,
+      permission,
+    ] =
+      await Promise.all([
+        roleExists(roleId),
+        permissionExists(
+          permissionId
+        ),
+      ]);
+
+    if (!role) {
+      return errorResponse(
+        res,
+        404,
+        "Role not found"
+      );
+    }
+
+    if (!permission) {
+      return errorResponse(
+        res,
+        404,
+        "Permission not found"
+      );
+    }
+
+    const [
+      adminRole,
+      rbacViewPermission,
+      rbacManagePermission,
+    ] =
+      await Promise.all([
+        getRoleByName("admin"),
+        getPermissionByName(
+          "rbac.view"
+        ),
+        getPermissionByName(
+          "rbac.manage"
+        ),
+      ]);
+
+    const isAdminRole =
+      adminRole?.id === roleId;
+
+    const isProtectedPermission =
+      permissionId ===
+        rbacViewPermission?.id ||
+      permissionId ===
+        rbacManagePermission?.id;
+
+    if (
+      isAdminRole &&
+      isProtectedPermission
+    ) {
+      return errorResponse(
+        res,
+        409,
+        "Protected RBAC permission cannot be removed from the admin role"
+      );
+    }
 
     const result =
       await removePermissionFromRole(
@@ -486,6 +551,70 @@ export async function removeRole(
       parseId(
         req.params.roleId
       );
+
+    const [
+      user,
+      role,
+    ] =
+      await Promise.all([
+        userExists(userId),
+        roleExists(roleId),
+      ]);
+
+    if (!user) {
+      return errorResponse(
+        res,
+        404,
+        "User not found"
+      );
+    }
+
+    if (!role) {
+      return errorResponse(
+        res,
+        404,
+        "Role not found"
+      );
+    }
+
+    const adminRole =
+      await getRoleByName(
+        "admin"
+      );
+
+    if (
+      adminRole &&
+      adminRole.id === roleId
+    ) {
+      const assignment =
+        await userHasRole(
+          userId,
+          roleId
+        );
+
+      if (!assignment) {
+        return errorResponse(
+          res,
+          404,
+          "User role assignment not found"
+        );
+      }
+
+      const activeAdminCount =
+        await countActiveUsersWithRole(
+          adminRole.id
+        );
+
+      if (
+        activeAdminCount <= 1
+      ) {
+        return errorResponse(
+          res,
+          409,
+          "Cannot remove the admin role from the last active administrator"
+        );
+      }
+    }
 
     const result =
       await removeRoleFromUser(

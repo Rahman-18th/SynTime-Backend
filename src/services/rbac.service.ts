@@ -266,3 +266,68 @@ export async function userExists(
     },
   });
 }
+
+export async function getRoleByName(
+  name: string
+) {
+  return prisma.role.findUnique({
+    where: {
+      name,
+    },
+
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+}
+
+export async function getPermissionByName(
+  name: string
+) {
+  return prisma.permission.findUnique({
+    where: {
+      name,
+    },
+
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+}
+
+export async function countActiveUsersWithRole(
+  roleId: bigint
+) {
+  return prisma.user.count({
+    where: {
+      isActive: true,
+
+      roles: {
+        some: {
+          roleId,
+        },
+      },
+    },
+  });
+}
+
+export async function userHasRole(
+  userId: bigint,
+  roleId: bigint
+) {
+  return prisma.userRole.findUnique({
+    where: {
+      userId_roleId: {
+        userId,
+        roleId,
+      },
+    },
+
+    select: {
+      userId: true,
+      roleId: true,
+    },
+  });
+}
