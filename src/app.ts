@@ -24,6 +24,7 @@ import companyRoutes from "./routes/company.routes.js";
 import departmentRoutes from "./routes/department.routes.js";
 import officeRoutes from "./routes/office.routes.js";
 import rbacRoutes from "./routes/rbac.routes.js";
+import settingRoutes from "./routes/setting.routes.js";
 
 dotenv.config();
 
@@ -56,8 +57,12 @@ app.use("/api/companies", companyRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/offices", officeRoutes);  
 app.use("/api/rbac", rbacRoutes);
-
+app.use("/api/settings", settingRoutes);
 app.get("/api/health", (req, res) => {
+
+
+
+  
   res.status(200).json({
     success: true,
     message: "SynTime API is running",

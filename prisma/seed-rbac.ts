@@ -103,6 +103,15 @@ const permissions = [
   },
 
   {
+    name: "settings.view",
+    description: "View system settings",
+  },
+  {
+    name: "settings.update",
+    description: "Update system settings",
+  },
+
+  {
     name: "rbac.view",
     description: "View roles and permissions",
   },
