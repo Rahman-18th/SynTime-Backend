@@ -32,19 +32,152 @@ import {
   getAuditContext,
 } from "../utils/audit-context.js";
 
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
+
 function parseId(
-  id: string | string[] | undefined
+  value:
+    | string
+    | string[]
+    | undefined
 ): bigint {
-  if (!id || Array.isArray(id)) {
-    throw new Error("INVALID_ID");
+  if (
+    !value ||
+    Array.isArray(value)
+  ) {
+    throw new Error(
+      "INVALID_ID"
+    );
   }
 
   try {
-    return BigInt(id);
+    return BigInt(value);
   } catch {
-    throw new Error("INVALID_ID");
+    throw new Error(
+      "INVALID_ID"
+    );
   }
 }
+
+function parseOptionalNumber(
+  value: unknown,
+  fieldName: string
+): number | undefined {
+  if (
+    value === undefined ||
+    value === ""
+  ) {
+    return undefined;
+  }
+
+  const parsed =
+    Number(value);
+
+  if (
+    !Number.isFinite(parsed)
+  ) {
+    throw new Error(
+      `INVALID_${fieldName.toUpperCase()}`
+    );
+  }
+
+  return parsed;
+}
+
+function validateLatitude(
+  value: number
+) {
+  if (
+    value < -90 ||
+    value > 90
+  ) {
+    throw new Error(
+      "INVALID_LATITUDE"
+    );
+  }
+}
+
+function validateLongitude(
+  value: number
+) {
+  if (
+    value < -180 ||
+    value > 180
+  ) {
+    throw new Error(
+      "INVALID_LONGITUDE"
+    );
+  }
+}
+
+function validateRadius(
+  value: number
+) {
+  if (
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > 10000
+  ) {
+    throw new Error(
+      "INVALID_RADIUS"
+    );
+  }
+}
+
+function handleValidationError(
+  error: unknown,
+  res: Response
+) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  switch (error.message) {
+    case "INVALID_ID":
+      errorResponse(
+        res,
+        400,
+        "Invalid office or company ID"
+      );
+      return true;
+
+    case "INVALID_LATITUDE":
+      errorResponse(
+        res,
+        400,
+        "Latitude must be between -90 and 90"
+      );
+      return true;
+
+    case "INVALID_LONGITUDE":
+      errorResponse(
+        res,
+        400,
+        "Longitude must be between -180 and 180"
+      );
+      return true;
+
+    case "INVALID_RADIUS":
+      errorResponse(
+        res,
+        400,
+        "Allowed radius must be an integer between 1 and 10000 meters"
+      );
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/offices
+|--------------------------------------------------------------------------
+*/
 
 export async function index(
   req: Request,
@@ -55,9 +188,12 @@ export async function index(
       req.query.companyId;
 
     const offices =
-      typeof companyId === "string"
+      typeof companyId ===
+      "string"
         ? await getOfficesByCompany(
-            BigInt(companyId)
+            parseId(
+              companyId
+            )
           )
         : await getAllOffices();
 
@@ -68,6 +204,15 @@ export async function index(
       offices
     );
   } catch (error) {
+    if (
+      handleValidationError(
+        error,
+        res
+      )
+    ) {
+      return;
+    }
+
     console.error(
       "Get offices error:",
       error
@@ -81,13 +226,21 @@ export async function index(
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| GET /api/offices/:id
+|--------------------------------------------------------------------------
+*/
+
 export async function show(
   req: Request,
   res: Response
 ) {
   try {
     const id =
-      parseId(req.params.id);
+      parseId(
+        req.params.id
+      );
 
     const office =
       await getOfficeById(id);
@@ -108,14 +261,12 @@ export async function show(
     );
   } catch (error) {
     if (
-      error instanceof Error &&
-      error.message === "INVALID_ID"
+      handleValidationError(
+        error,
+        res
+      )
     ) {
-      return errorResponse(
-        res,
-        400,
-        "Invalid office ID"
-      );
+      return;
     }
 
     console.error(
@@ -131,6 +282,12 @@ export async function show(
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| POST /api/offices
+|--------------------------------------------------------------------------
+*/
+
 export async function store(
   req: AuthRequest,
   res: Response
@@ -145,7 +302,12 @@ export async function store(
       allowedRadiusMeters,
     } = req.body ?? {};
 
-    if (!companyId || !name) {
+    if (
+      !companyId ||
+      typeof name !==
+        "string" ||
+      !name.trim()
+    ) {
       return errorResponse(
         res,
         400,
@@ -153,47 +315,134 @@ export async function store(
       );
     }
 
+    const parsedCompanyId =
+      parseId(
+        String(companyId)
+      );
+
+    const parsedLatitude =
+      parseOptionalNumber(
+        latitude,
+        "latitude"
+      );
+
+    const parsedLongitude =
+      parseOptionalNumber(
+        longitude,
+        "longitude"
+      );
+
+    const parsedRadius =
+      parseOptionalNumber(
+        allowedRadiusMeters,
+        "radius"
+      );
+
+    if (
+      (
+        parsedLatitude ===
+          undefined
+      ) !==
+      (
+        parsedLongitude ===
+          undefined
+      )
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Latitude and longitude must be provided together"
+      );
+    }
+
+    if (
+      parsedLatitude !==
+      undefined
+    ) {
+      validateLatitude(
+        parsedLatitude
+      );
+    }
+
+    if (
+      parsedLongitude !==
+      undefined
+    ) {
+      validateLongitude(
+        parsedLongitude
+      );
+    }
+
+    if (
+      parsedRadius !==
+      undefined
+    ) {
+      validateRadius(
+        parsedRadius
+      );
+    }
+
     const office =
       await createOffice({
         companyId:
-          BigInt(companyId),
+          parsedCompanyId,
 
-        name,
+        name:
+          name.trim(),
 
-        ...(address !== undefined && {
-          address,
+        ...(typeof address ===
+          "string" && {
+          address:
+            address.trim(),
         }),
 
-        ...(latitude !== undefined && {
+        ...(parsedLatitude !==
+          undefined && {
           latitude:
-            Number(latitude),
+            parsedLatitude,
         }),
 
-        ...(longitude !== undefined && {
+        ...(parsedLongitude !==
+          undefined && {
           longitude:
-            Number(longitude),
+            parsedLongitude,
         }),
 
-        ...(allowedRadiusMeters !== undefined && {
+        ...(parsedRadius !==
+          undefined && {
           allowedRadiusMeters:
-            Number(
-              allowedRadiusMeters
-            ),
+            parsedRadius,
         }),
       });
 
     await writeAuditLog({
       ...(req.user?.userId && {
-        actorUserId: BigInt(req.user.userId),
+        actorUserId:
+          BigInt(
+            req.user.userId
+          ),
       }),
-      action: "master_data.office_created",
-      entityType: "office",
-      entityId: office.id.toString(),
-      description: `Created office ${office.name}`,
+
+      action:
+        "master_data.office_created",
+
+      entityType:
+        "office",
+
+      entityId:
+        office.id.toString(),
+
+      description:
+        `Created office ${office.name}`,
+
       metadata: {
-        name: office.name,
-        companyId: office.companyId.toString(),
+        name:
+          office.name,
+
+        companyId:
+          office.companyId.toString(),
       },
+
       ...getAuditContext(req),
     });
 
@@ -204,8 +453,24 @@ export async function store(
       office
     );
   } catch (error) {
-    if (isPrismaKnownError(error)) {
-      if (error.code === "P2003") {
+    if (
+      handleValidationError(
+        error,
+        res
+      )
+    ) {
+      return;
+    }
+
+    if (
+      isPrismaKnownError(
+        error
+      )
+    ) {
+      if (
+        error.code ===
+        "P2003"
+      ) {
         return errorResponse(
           res,
           400,
@@ -227,13 +492,34 @@ export async function store(
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| PUT /api/offices/:id
+|--------------------------------------------------------------------------
+*/
+
 export async function update(
   req: AuthRequest,
   res: Response
 ) {
   try {
     const id =
-      parseId(req.params.id);
+      parseId(
+        req.params.id
+      );
+
+    if (
+      !req.body ||
+      Object.keys(
+        req.body
+      ).length === 0
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Request body is required"
+      );
+    }
 
     const existing =
       await getOfficeById(id);
@@ -253,59 +539,190 @@ export async function update(
       latitude,
       longitude,
       allowedRadiusMeters,
-    } = req.body ?? {};
+    } = req.body;
+
+    if (
+      name !== undefined &&
+      (
+        typeof name !==
+          "string" ||
+        !name.trim()
+      )
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Office name cannot be empty"
+      );
+    }
+
+    let parsedCompanyId:
+      | bigint
+      | undefined;
+
+    if (
+      companyId !==
+      undefined
+    ) {
+      parsedCompanyId =
+        parseId(
+          String(companyId)
+        );
+    }
+
+    const parsedLatitude =
+      latitude === null
+        ? null
+        : parseOptionalNumber(
+            latitude,
+            "latitude"
+          );
+
+    const parsedLongitude =
+      longitude === null
+        ? null
+        : parseOptionalNumber(
+            longitude,
+            "longitude"
+          );
+
+    const parsedRadius =
+      parseOptionalNumber(
+        allowedRadiusMeters,
+        "radius"
+      );
+
+    if (
+      typeof parsedLatitude ===
+      "number"
+    ) {
+      validateLatitude(
+        parsedLatitude
+      );
+    }
+
+    if (
+      typeof parsedLongitude ===
+      "number"
+    ) {
+      validateLongitude(
+        parsedLongitude
+      );
+    }
+
+    if (
+      parsedRadius !==
+      undefined
+    ) {
+      validateRadius(
+        parsedRadius
+      );
+    }
+
+    if (
+      (
+        parsedLatitude ===
+          null
+      ) !==
+      (
+        parsedLongitude ===
+          null
+      )
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Latitude and longitude must be cleared together"
+      );
+    }
+
+ const updateData = {
+  ...(parsedCompanyId !==
+    undefined && {
+    companyId:
+      parsedCompanyId,
+  }),
+
+  ...(name !==
+    undefined && {
+    name:
+      name.trim(),
+  }),
+
+  ...(address !==
+    undefined && {
+    address:
+      address === null
+        ? null
+        : String(
+            address
+          ).trim(),
+  }),
+
+  ...(parsedLatitude !==
+    undefined && {
+    latitude:
+      parsedLatitude,
+  }),
+
+  ...(parsedLongitude !==
+    undefined && {
+    longitude:
+      parsedLongitude,
+  }),
+
+  ...(parsedRadius !==
+    undefined && {
+    allowedRadiusMeters:
+      parsedRadius,
+  }),
+};
+
+    if (
+      Object.keys(
+        updateData
+      ).length === 0
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "No valid fields provided for update"
+      );
+    }
 
     const office =
       await updateOffice(
         id,
-        {
-          ...(companyId !== undefined && {
-            companyId:
-              BigInt(companyId),
-          }),
-
-          ...(name !== undefined && {
-            name,
-          }),
-
-          ...(address !== undefined && {
-            address,
-          }),
-
-          ...(latitude !== undefined && {
-            latitude:
-              latitude === null
-                ? null
-                : Number(latitude),
-          }),
-
-          ...(longitude !== undefined && {
-            longitude:
-              longitude === null
-                ? null
-                : Number(longitude),
-          }),
-
-          ...(allowedRadiusMeters !== undefined && {
-            allowedRadiusMeters:
-              Number(
-                allowedRadiusMeters
-              ),
-          }),
-        }
+        updateData
       );
 
     await writeAuditLog({
       ...(req.user?.userId && {
-        actorUserId: BigInt(req.user.userId),
+        actorUserId:
+          BigInt(
+            req.user.userId
+          ),
       }),
-      action: "master_data.office_updated",
-      entityType: "office",
-      entityId: office.id.toString(),
-      description: `Updated office ${office.name}`,
+
+      action:
+        "master_data.office_updated",
+
+      entityType:
+        "office",
+
+      entityId:
+        office.id.toString(),
+
+      description:
+        `Updated office ${office.name}`,
+
       metadata: {
-        updatedFields: Object.keys(req.body ?? {}),
+        updatedFields:
+          Object.keys(
+            updateData
+          ),
       },
+
       ...getAuditContext(req),
     });
 
@@ -316,6 +733,43 @@ export async function update(
       office
     );
   } catch (error) {
+    if (
+      handleValidationError(
+        error,
+        res
+      )
+    ) {
+      return;
+    }
+
+    if (
+      isPrismaKnownError(
+        error
+      )
+    ) {
+      if (
+        error.code ===
+        "P2003"
+      ) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid company reference"
+        );
+      }
+
+      if (
+        error.code ===
+        "P2025"
+      ) {
+        return errorResponse(
+          res,
+          404,
+          "Office not found"
+        );
+      }
+    }
+
     console.error(
       "Update office error:",
       error
