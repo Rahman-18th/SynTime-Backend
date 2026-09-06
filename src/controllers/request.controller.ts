@@ -54,20 +54,118 @@ function parseId(
   }
 }
 
+function parsePositiveInteger(
+  value: unknown,
+  fieldName: string
+): number | undefined {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`INVALID_${fieldName.toUpperCase()}`);
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`INVALID_${fieldName.toUpperCase()}`);
+  }
+
+  return parsed;
+}
+
 export async function index(
   req: Request,
   res: Response
 ) {
   try {
-    const requests = await getAllRequests();
+    const page = parsePositiveInteger(req.query.page, "page");
+    const limit = parsePositiveInteger(req.query.limit, "limit");
+
+    if (limit !== undefined && limit > 100) {
+      return errorResponse(res, 400, "Limit cannot exceed 100");
+    }
+
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : undefined;
+
+    const status =
+      typeof req.query.status === "string"
+        ? req.query.status
+        : undefined;
+    const allowedStatuses = ["pending", "approved", "rejected"];
+
+    if (status && !allowedStatuses.includes(status)) {
+      return errorResponse(res, 400, "Invalid request status");
+    }
+
+    const type =
+      typeof req.query.type === "string"
+        ? req.query.type
+        : undefined;
+    const allowedTypes = [
+      "leave",
+      "permission",
+      "attendance_correction",
+    ];
+
+    if (type && !allowedTypes.includes(type)) {
+      return errorResponse(res, 400, "Invalid request type");
+    }
+
+    const result = await getAllRequests({
+      ...(page !== undefined && { page }),
+      ...(limit !== undefined && { limit }),
+      ...(search && { search }),
+      ...(status && { status }),
+      ...(type && { type }),
+    });
+
+    const totalPages = result.paginationEnabled
+      ? Math.ceil(result.total / result.limit)
+      : result.total > 0
+        ? 1
+        : 0;
 
     return successResponse(
       res,
       200,
       "Requests retrieved successfully",
-      serializeBigInt(requests)
+      serializeBigInt(result.requests),
+      {
+        page: result.paginationEnabled ? result.page : 1,
+        limit: result.paginationEnabled ? result.limit : result.total,
+        total: result.total,
+        totalPages,
+        hasNextPage:
+          result.paginationEnabled && result.page < totalPages,
+        hasPreviousPage:
+          result.paginationEnabled && result.page > 1,
+        summary: result.summary,
+      }
     );
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "INVALID_PAGE") {
+        return errorResponse(
+          res,
+          400,
+          "Page must be a positive integer"
+        );
+      }
+
+      if (error.message === "INVALID_LIMIT") {
+        return errorResponse(
+          res,
+          400,
+          "Limit must be a positive integer"
+        );
+      }
+    }
+
     console.error("Get requests error:", error);
 
     return errorResponse(
