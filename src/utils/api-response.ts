@@ -63,16 +63,23 @@ export function successResponse(
   res: Response,
   statusCode: number,
   message: string,
-  data?: unknown
+  data?: unknown,
+  meta?: unknown
 ) {
   return res
     .status(statusCode)
     .json({
       success: true,
       message,
+
       ...(data !== undefined && {
         data:
           serializeValue(data),
+      }),
+
+      ...(meta !== undefined && {
+        meta:
+          serializeValue(meta),
       }),
     });
 }
@@ -88,6 +95,7 @@ export function errorResponse(
     .json({
       success: false,
       message,
+
       ...(errors !== undefined && {
         errors:
           serializeValue(errors),

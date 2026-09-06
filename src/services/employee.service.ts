@@ -1,37 +1,154 @@
 import prisma from "../config/prisma.js";
 
+import type {
+  Prisma,
+} from "../generated/prisma/client.js";
+
+
 /*
 |--------------------------------------------------------------------------
 | Employee Queries
 |--------------------------------------------------------------------------
 */
 
-export async function getAllEmployees() {
-  return prisma.employee.findMany({
-    include: {
-      company: true,
+interface EmployeeQueryOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  departmentId?: bigint;
+}
 
-      department: true,
+export async function getAllEmployees(
+  options: EmployeeQueryOptions = {}
+) {
+  const where:
+    Prisma.EmployeeWhereInput = {};
 
-      office: true,
+  if (options.search) {
+    const search =
+      options.search.trim();
 
-      user: {
-        select: {
-          id: true,
-          employeeId: true,
-          email: true,
-          isActive: true,
-          lastLoginAt: true,
-          createdAt: true,
-          updatedAt: true,
+    if (search) {
+      where.OR = [
+        {
+          employeeNumber: {
+            contains: search,
+            mode: "insensitive",
+          },
         },
-      },
-    },
+        {
+          firstName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          lastName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          position: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          department: {
+            name: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+      ];
+    }
+  }
 
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  if (options.status) {
+    where.status =
+      options.status;
+  }
+
+  if (
+    options.departmentId !==
+    undefined
+  ) {
+    where.departmentId =
+      options.departmentId;
+  }
+
+  const paginationEnabled =
+    options.page !== undefined ||
+    options.limit !== undefined;
+
+  const page =
+    options.page ?? 1;
+
+  const limit =
+    options.limit ?? 10;
+
+  const [
+    employees,
+    total,
+  ] =
+    await prisma.$transaction([
+      prisma.employee.findMany({
+        where,
+
+        include: {
+          company: true,
+
+          department: true,
+
+          office: true,
+
+          user: {
+            select: {
+              id: true,
+              employeeId: true,
+              email: true,
+              isActive: true,
+              lastLoginAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
+        },
+
+        orderBy: {
+          createdAt: "desc",
+        },
+
+        ...(paginationEnabled && {
+          skip:
+            (page - 1) *
+            limit,
+
+          take: limit,
+        }),
+      }),
+
+      prisma.employee.count({
+        where,
+      }),
+    ]);
+
+  return {
+    employees,
+    total,
+    paginationEnabled,
+    page,
+    limit,
+  };
 }
 
 export async function getEmployeeById(

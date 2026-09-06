@@ -67,6 +67,67 @@ function handleInvalidEmployeeId(
   return false;
 }
 
+function parsePositiveInteger(
+  value: unknown,
+  fieldName: string
+): number | undefined {
+  if (
+    value === undefined ||
+    value === ""
+  ) {
+    return undefined;
+  }
+
+  if (
+    typeof value !== "string"
+  ) {
+    throw new Error(
+      `INVALID_${fieldName.toUpperCase()}`
+    );
+  }
+
+  const parsed =
+    Number(value);
+
+  if (
+    !Number.isInteger(parsed) ||
+    parsed <= 0
+  ) {
+    throw new Error(
+      `INVALID_${fieldName.toUpperCase()}`
+    );
+  }
+
+  return parsed;
+}
+
+function parseDepartmentId(
+  value: unknown
+): bigint | undefined {
+  if (
+    value === undefined ||
+    value === ""
+  ) {
+    return undefined;
+  }
+
+  if (
+    typeof value !== "string"
+  ) {
+    throw new Error(
+      "INVALID_DEPARTMENT_ID"
+    );
+  }
+
+  try {
+    return BigInt(value);
+  } catch {
+    throw new Error(
+      "INVALID_DEPARTMENT_ID"
+    );
+  }
+}
+
 /*
 |--------------------------------------------------------------------------
 | GET /api/employees
@@ -78,16 +139,155 @@ export async function index(
   res: Response
 ) {
   try {
-    const employees =
-      await getAllEmployees();
+    const page =
+      parsePositiveInteger(
+        req.query.page,
+        "page"
+      );
+
+    const limit =
+      parsePositiveInteger(
+        req.query.limit,
+        "limit"
+      );
+
+    if (
+      limit !== undefined &&
+      limit > 100
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Limit cannot exceed 100"
+      );
+    }
+
+    const search =
+      typeof req.query.search ===
+      "string"
+        ? req.query.search.trim()
+        : undefined;
+
+    const status =
+      typeof req.query.status ===
+      "string"
+        ? req.query.status
+        : undefined;
+
+    if (
+      status &&
+      ![
+        "active",
+        "inactive",
+      ].includes(status)
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid employee status. Use active or inactive."
+      );
+    }
+
+    const departmentId =
+      parseDepartmentId(
+        req.query.departmentId
+      );
+
+    const result =
+      await getAllEmployees({
+        ...(page !== undefined && {
+          page,
+        }),
+        ...(limit !== undefined && {
+          limit,
+        }),
+        ...(search && {
+          search,
+        }),
+        ...(status && {
+          status,
+        }),
+        ...(departmentId !==
+          undefined && {
+          departmentId,
+        }),
+      });
+
+    const totalPages =
+      result.paginationEnabled
+        ? Math.ceil(
+            result.total /
+              result.limit
+          )
+        : result.total > 0
+          ? 1
+          : 0;
+
+    const meta = {
+      page:
+        result.paginationEnabled
+          ? result.page
+          : 1,
+      limit:
+        result.paginationEnabled
+          ? result.limit
+          : result.total,
+      total:
+        result.total,
+      totalPages,
+      hasNextPage:
+        result.paginationEnabled &&
+        result.page < totalPages,
+      hasPreviousPage:
+        result.paginationEnabled &&
+        result.page > 1,
+    };
 
     return successResponse(
       res,
       200,
       "Employees retrieved successfully",
-      serializeBigInt(employees)
+      result.employees,
+      meta
     );
   } catch (error) {
+    if (
+      error instanceof Error
+    ) {
+      if (
+        error.message ===
+        "INVALID_PAGE"
+      ) {
+        return errorResponse(
+          res,
+          400,
+          "Page must be a positive integer"
+        );
+      }
+
+      if (
+        error.message ===
+        "INVALID_LIMIT"
+      ) {
+        return errorResponse(
+          res,
+          400,
+          "Limit must be a positive integer"
+        );
+      }
+
+      if (
+        error.message ===
+        "INVALID_DEPARTMENT_ID"
+      ) {
+        return errorResponse(
+          res,
+          400,
+          "Invalid department ID"
+        );
+      }
+    }
+
     console.error(
       "Get employees error:",
       error
