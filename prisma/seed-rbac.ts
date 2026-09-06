@@ -119,6 +119,11 @@ const permissions = [
     name: "rbac.manage",
     description: "Manage roles and permissions",
   },
+
+  {
+    name: "audit_logs.view",
+    description: "View system audit logs",
+  },
 ];
 
 async function main() {

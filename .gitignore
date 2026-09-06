@@ -9,6 +9,11 @@ node_modules/
 # Build output
 dist/
 
+# Generated seed outputs
+prisma/seed*.js
+prisma/seed*.js.map
+prisma/seed*.d.ts.map
+
 # Prisma generated client
 src/generated/
 

@@ -1,5 +1,9 @@
 import type { Request, Response } from "express";
 
+import type {
+  AuthRequest,
+} from "../middleware/auth.middleware.js";
+
 import {
   createEmployee,
   getAllEmployees,
@@ -11,6 +15,14 @@ import {
 import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
+
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
 
 import {
   successResponse,
@@ -362,7 +374,7 @@ export async function show(
 */
 
 export async function store(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -438,12 +450,40 @@ export async function store(
         employeeData
       );
 
-   return successResponse(
-  res,
-  201,
-  "Employee created successfully",
-  serializeBigInt(employee)
-);
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId:
+          BigInt(
+            req.user.userId
+          ),
+      }),
+
+      action:
+        "employee.created",
+
+      entityType:
+        "employee",
+
+      entityId:
+        employee.id.toString(),
+
+      description:
+        `Created employee ${firstName}`,
+
+      metadata: {
+        employeeNumber,
+        email,
+      },
+
+      ...getAuditContext(req),
+    });
+
+    return successResponse(
+      res,
+      201,
+      "Employee created successfully",
+      serializeBigInt(employee)
+    );
   } catch (error) {
     if (isPrismaKnownError(error)) {
   if (error.code === "P2002") {
