@@ -1,20 +1,167 @@
 import prisma from "../config/prisma.js";
+import type {
+  Prisma,
+} from "../generated/prisma/client.js";
 
-export async function getAllAttendances() {
-  return prisma.attendance.findMany({
-    include: {
-      schedule: {
-        include: {
-          employee: true,
-          shift: true,
-          office: true,
+interface AttendanceQueryOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  date?: Date;
+}
+
+export async function getAllAttendances(
+  options: AttendanceQueryOptions = {}
+) {
+  const scheduleFilter:
+    Prisma.ScheduleWhereInput = {};
+
+  if (options.search) {
+    const search = options.search.trim();
+
+    if (search) {
+      scheduleFilter.employee = {
+        is: {
+          OR: [
+            {
+              employeeNumber: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              firstName: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              lastName: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              email: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          ],
+        },
+      };
+    }
+  }
+
+  if (options.date) {
+    const startDate = options.date;
+    const endDate = new Date(
+      startDate.getTime() + 24 * 60 * 60 * 1000
+    );
+
+    scheduleFilter.workDate = {
+      gte: startDate,
+      lt: endDate,
+    };
+  }
+
+  const baseWhere:
+    Prisma.AttendanceWhereInput =
+      Object.keys(scheduleFilter).length > 0
+        ? {
+            schedule: {
+              is: scheduleFilter,
+            },
+          }
+        : {};
+
+  const where: Prisma.AttendanceWhereInput = {
+    ...baseWhere,
+    ...(options.status && {
+      status: options.status,
+    }),
+  };
+
+  const paginationEnabled =
+    options.page !== undefined ||
+    options.limit !== undefined;
+  const page = options.page ?? 1;
+  const limit = options.limit ?? 10;
+
+  const [
+    attendances,
+    total,
+    totalRecords,
+    present,
+    late,
+    incomplete,
+  ] = await prisma.$transaction([
+    prisma.attendance.findMany({
+      where,
+      include: {
+        schedule: {
+          include: {
+            employee: true,
+            shift: true,
+            office: true,
+          },
         },
       },
+      orderBy: [
+        {
+          schedule: {
+            workDate: "desc",
+          },
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
+      ...(paginationEnabled && {
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    }),
+    prisma.attendance.count({
+      where,
+    }),
+    prisma.attendance.count({
+      where: baseWhere,
+    }),
+    prisma.attendance.count({
+      where: {
+        ...baseWhere,
+        status: "present",
+      },
+    }),
+    prisma.attendance.count({
+      where: {
+        ...baseWhere,
+        status: "late",
+      },
+    }),
+    prisma.attendance.count({
+      where: {
+        ...baseWhere,
+        checkOutAt: null,
+      },
+    }),
+  ]);
+
+  return {
+    attendances,
+    total,
+    paginationEnabled,
+    page,
+    limit,
+    summary: {
+      totalRecords,
+      present,
+      late,
+      incomplete,
     },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  };
 }
 
 export async function getAttendanceById(id: bigint) {
