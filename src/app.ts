@@ -25,6 +25,7 @@ import departmentRoutes from "./routes/department.routes.js";
 import officeRoutes from "./routes/office.routes.js";
 import rbacRoutes from "./routes/rbac.routes.js";
 import settingRoutes from "./routes/setting.routes.js";
+import auditLogRoutes from "./routes/audit-log.routes.js";
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/offices", officeRoutes);  
 app.use("/api/rbac", rbacRoutes);
 app.use("/api/settings", settingRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
 app.get("/api/health", (req, res) => {
 
 

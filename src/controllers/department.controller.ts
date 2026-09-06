@@ -3,6 +3,10 @@ import type {
   Response,
 } from "express";
 
+import type {
+  AuthRequest,
+} from "../middleware/auth.middleware.js";
+
 import {
   createDepartment,
   getAllDepartments,
@@ -19,6 +23,14 @@ import {
 import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
+
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
 
 function parseId(
   id: string | string[] | undefined
@@ -120,7 +132,7 @@ export async function show(
 }
 
 export async function store(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -149,6 +161,21 @@ export async function store(
           description,
         }),
       });
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "master_data.department_created",
+      entityType: "department",
+      entityId: department.id.toString(),
+      description: `Created department ${department.name}`,
+      metadata: {
+        name: department.name,
+        companyId: department.companyId.toString(),
+      },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,
@@ -189,7 +216,7 @@ export async function store(
 }
 
 export async function update(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -231,6 +258,20 @@ export async function update(
           }),
         }
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "master_data.department_updated",
+      entityType: "department",
+      entityId: department.id.toString(),
+      description: `Updated department ${department.name}`,
+      metadata: {
+        updatedFields: Object.keys(req.body ?? {}),
+      },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,

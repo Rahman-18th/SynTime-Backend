@@ -30,6 +30,14 @@ import {
   successResponse,
 } from "../utils/api-response.js";
 
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -517,6 +525,25 @@ export async function review(
 
       type:
         "request_review",
+    });
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action:
+        status === "approved"
+          ? "request.approved"
+          : "request.rejected",
+      entityType: "request",
+      entityId: id.toString(),
+      description: `${status === "approved" ? "Approved" : "Rejected"} ${existingRequest.type} request`,
+      metadata: {
+        requestType: existingRequest.type,
+        employeeId: existingRequest.employeeId.toString(),
+        status,
+      },
+      ...getAuditContext(req),
     });
 
     return successResponse(

@@ -18,18 +18,19 @@ export function getAuditContext(
           ?.trim()
       : req.ip;
 
+  const userAgent =
+    req.headers[
+      "user-agent"
+    ];
+
   return {
     ...(ipAddress && {
       ipAddress,
     }),
 
-    ...(req.headers[
-      "user-agent"
-    ] && {
-      userAgent:
-        req.headers[
-          "user-agent"
-        ],
+    ...(typeof userAgent ===
+      "string" && {
+      userAgent,
     }),
   };
 }

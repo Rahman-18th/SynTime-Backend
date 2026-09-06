@@ -2,14 +2,21 @@ import {
   createAuditLog,
 } from "../services/audit-log.service.js";
 
-type AuditData = Parameters<typeof createAuditLog>[0];
+import type {
+  CreateAuditLogData,
+} from "../services/audit-log.service.js";
 
 export async function writeAuditLog(
-  data: AuditData
+  data: CreateAuditLogData
 ) {
   try {
-    await createAuditLog(data);
+    await createAuditLog(
+      data
+    );
   } catch (error) {
-    console.error("Audit log error:", error);
+    console.error(
+      "Audit log error:",
+      error
+    );
   }
 }

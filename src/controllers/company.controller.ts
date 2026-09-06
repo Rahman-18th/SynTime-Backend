@@ -3,6 +3,10 @@ import type {
   Response,
 } from "express";
 
+import type {
+  AuthRequest,
+} from "../middleware/auth.middleware.js";
+
 import {
   createCompany,
   getAllCompanies,
@@ -18,6 +22,14 @@ import {
 import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
+
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
 
 function parseId(
   id: string | string[] | undefined
@@ -112,7 +124,7 @@ export async function show(
 }
 
 export async function store(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -148,6 +160,18 @@ export async function store(
         }),
       });
 
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "master_data.company_created",
+      entityType: "company",
+      entityId: company.id.toString(),
+      description: `Created company ${company.name}`,
+      metadata: { name: company.name },
+      ...getAuditContext(req),
+    });
+
     return successResponse(
       res,
       201,
@@ -179,7 +203,7 @@ export async function store(
 }
 
 export async function update(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -213,6 +237,20 @@ export async function update(
         id,
         req.body
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "master_data.company_updated",
+      entityType: "company",
+      entityId: company.id.toString(),
+      description: `Updated company ${company.name}`,
+      metadata: {
+        updatedFields: Object.keys(req.body ?? {}),
+      },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,

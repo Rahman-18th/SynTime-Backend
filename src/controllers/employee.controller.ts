@@ -523,7 +523,7 @@ return errorResponse(
 */
 
 export async function update(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -608,6 +608,20 @@ export async function update(
         employeeData
       );
 
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "employee.updated",
+      entityType: "employee",
+      entityId: employee.id.toString(),
+      description: `Updated employee ${employee.firstName}`,
+      metadata: {
+        updatedFields: Object.keys(employeeData),
+      },
+      ...getAuditContext(req),
+    });
+
     return successResponse(
   res,
   200,
@@ -670,7 +684,7 @@ return errorResponse(
 */
 
 export async function updateStatus(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -715,6 +729,18 @@ export async function updateStatus(
         id,
         status
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "employee.status_changed",
+      entityType: "employee",
+      entityId: employee.id.toString(),
+      description: `Changed employee status to ${status}`,
+      metadata: { status },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
   res,

@@ -331,3 +331,15 @@ export async function userHasRole(
     },
   });
 }
+
+export async function getUserForAudit(
+  id: bigint
+) {
+  return prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      email: true,
+    },
+  });
+}

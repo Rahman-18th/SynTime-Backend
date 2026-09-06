@@ -3,6 +3,10 @@ import type {
   Response,
 } from "express";
 
+import type {
+  AuthRequest,
+} from "../middleware/auth.middleware.js";
+
 import {
   getAllSettings,
   updateSettings,
@@ -12,6 +16,14 @@ import {
   errorResponse,
   successResponse,
 } from "../utils/api-response.js";
+
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
 
 export async function index(
   req: Request,
@@ -42,7 +54,7 @@ export async function index(
 }
 
 export async function update(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -110,10 +122,31 @@ export async function update(
       );
     }
 
+    const previousSettings =
+      await getAllSettings();
+
     const settings =
       await updateSettings(
         payload
       );
+
+    const changedKeys = Object.keys(payload).filter(
+      (key) =>
+        previousSettings[
+          key as keyof typeof previousSettings
+        ] !== payload[key]
+    );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "settings.updated",
+      entityType: "settings",
+      description: "Updated system settings",
+      metadata: { changedKeys },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,

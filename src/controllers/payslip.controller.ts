@@ -24,6 +24,14 @@ import {
   successResponse,
 } from "../utils/api-response.js";
 
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
+
 function serializeBigInt(data: unknown) {
   return JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -303,7 +311,7 @@ export async function myPayslips(
 */
 
 export async function store(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -458,6 +466,23 @@ export async function store(
         }),
       });
 
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "payslip.created",
+      entityType: "payslip",
+      entityId: payslip.id.toString(),
+      description: "Created employee payslip",
+      metadata: {
+        employeeId: payslip.employeeId.toString(),
+        periodMonth: payslip.periodMonth,
+        periodYear: payslip.periodYear,
+        status: payslip.status,
+      },
+      ...getAuditContext(req),
+    });
+
     return successResponse(
       res,
       201,
@@ -503,7 +528,7 @@ export async function store(
 */
 
 export async function update(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -633,6 +658,21 @@ export async function update(
         id,
         parsedData
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "payslip.updated",
+      entityType: "payslip",
+      entityId: payslip.id.toString(),
+      description: "Updated employee payslip",
+      metadata: {
+        updatedFields: Object.keys(parsedData),
+        status: payslip.status,
+      },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,

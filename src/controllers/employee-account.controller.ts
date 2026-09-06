@@ -1,7 +1,10 @@
 import type {
-  Request,
   Response,
 } from "express";
+
+import type {
+  AuthRequest,
+} from "../middleware/auth.middleware.js";
 
 import {
   createEmployeeAccount,
@@ -13,6 +16,14 @@ import {
   successResponse,
   errorResponse,
 } from "../utils/api-response.js";
+
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
 
 /*
 |--------------------------------------------------------------------------
@@ -119,7 +130,7 @@ function handleServiceError(
 */
 
 export async function createAccount(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -132,6 +143,21 @@ export async function createAccount(
       await createEmployeeAccount(
         employeeId
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "employee.account_created",
+      entityType: "employee",
+      entityId: employeeId.toString(),
+      description: "Created employee login account",
+      metadata: {
+        employeeId: employeeId.toString(),
+        email: result.user.email,
+      },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,
@@ -169,7 +195,7 @@ export async function createAccount(
 */
 
 export async function resetPassword(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -182,6 +208,21 @@ export async function resetPassword(
       await resetEmployeePassword(
         employeeId
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "employee.password_reset",
+      entityType: "employee",
+      entityId: employeeId.toString(),
+      description: "Reset employee login password",
+      metadata: {
+        employeeId: employeeId.toString(),
+        email: result.user.email,
+      },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,
@@ -219,7 +260,7 @@ export async function resetPassword(
 */
 
 export async function updateAccountStatus(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -248,6 +289,20 @@ export async function updateAccountStatus(
         employeeId,
         isActive
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "employee.account_status_changed",
+      entityType: "employee",
+      entityId: employeeId.toString(),
+      description: isActive
+        ? "Enabled employee login account"
+        : "Disabled employee login account",
+      metadata: { isActive },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,

@@ -3,6 +3,10 @@ import type {
   Response,
 } from "express";
 
+import type {
+  AuthRequest,
+} from "../middleware/auth.middleware.js";
+
 import {
   assignPermissionToRole,
   assignRoleToUser,
@@ -13,6 +17,7 @@ import {
   getPermissionByName,
   getRoleById,
   getRoleByName,
+  getUserForAudit,
   permissionExists,
   removePermissionFromRole,
   removeRoleFromUser,
@@ -29,6 +34,14 @@ import {
 import {
   isPrismaKnownError,
 } from "../utils/prisma-error.js";
+
+import {
+  writeAuditLog,
+} from "../utils/audit.js";
+
+import {
+  getAuditContext,
+} from "../utils/audit-context.js";
 
 /*
 |--------------------------------------------------------------------------
@@ -226,7 +239,7 @@ export async function usersIndex(
 */
 
 export async function assignPermission(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -273,6 +286,23 @@ export async function assignPermission(
         permissionId
       );
 
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "rbac.permission_assigned",
+      entityType: "role",
+      entityId: roleId.toString(),
+      description: `Assigned permission ${result.permission.name} to role ${result.role.name}`,
+      metadata: {
+        roleId: roleId.toString(),
+        roleName: result.role.name,
+        permissionId: permissionId.toString(),
+        permissionName: result.permission.name,
+      },
+      ...getAuditContext(req),
+    });
+
     return successResponse(
       res,
       200,
@@ -311,7 +341,7 @@ export async function assignPermission(
 |--------------------------------------------------------------------------
 */
 export async function removePermission(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -387,11 +417,41 @@ export async function removePermission(
       );
     }
 
+    const [
+      roleDetail,
+      permissionDetails,
+    ] = await Promise.all([
+      getRoleById(roleId),
+      getAllPermissions(),
+    ]);
+
+    const permissionDetail =
+      permissionDetails.find(
+        (item) => item.id === permissionId
+      );
+
     const result =
       await removePermissionFromRole(
         roleId,
         permissionId
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "rbac.permission_removed",
+      entityType: "role",
+      entityId: roleId.toString(),
+      description: `Removed permission ${permissionDetail?.name ?? permissionId.toString()} from role ${roleDetail?.name ?? roleId.toString()}`,
+      metadata: {
+        roleId: roleId.toString(),
+        roleName: roleDetail?.name ?? "unknown",
+        permissionId: permissionId.toString(),
+        permissionName: permissionDetail?.name ?? "unknown",
+      },
+      ...getAuditContext(req),
+    });
 
     if (
       result.count === 0
@@ -441,7 +501,7 @@ export async function removePermission(
 */
 
 export async function assignRole(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -485,6 +545,23 @@ export async function assignRole(
         userId,
         roleId
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "rbac.role_assigned",
+      entityType: "user",
+      entityId: userId.toString(),
+      description: `Assigned role ${result.role.name} to ${result.user.email}`,
+      metadata: {
+        userId: userId.toString(),
+        email: result.user.email,
+        roleId: roleId.toString(),
+        roleName: result.role.name,
+      },
+      ...getAuditContext(req),
+    });
 
     return successResponse(
       res,
@@ -538,7 +615,7 @@ export async function assignRole(
 */
 
 export async function removeRole(
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) {
   try {
@@ -616,11 +693,36 @@ export async function removeRole(
       }
     }
 
+    const [
+      targetUser,
+      targetRole,
+    ] = await Promise.all([
+      getUserForAudit(userId),
+      getRoleById(roleId),
+    ]);
+
     const result =
       await removeRoleFromUser(
         userId,
         roleId
       );
+
+    await writeAuditLog({
+      ...(req.user?.userId && {
+        actorUserId: BigInt(req.user.userId),
+      }),
+      action: "rbac.role_removed",
+      entityType: "user",
+      entityId: userId.toString(),
+      description: `Removed role ${targetRole?.name ?? roleId.toString()} from ${targetUser?.email ?? userId.toString()}`,
+      metadata: {
+        userId: userId.toString(),
+        email: targetUser?.email ?? "unknown",
+        roleId: roleId.toString(),
+        roleName: targetRole?.name ?? "unknown",
+      },
+      ...getAuditContext(req),
+    });
 
     if (
       result.count === 0
