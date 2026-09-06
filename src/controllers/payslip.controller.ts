@@ -48,6 +48,27 @@ function parseId(
   }
 }
 
+function parsePositiveInteger(
+  value: unknown,
+  fieldName: string
+): number | undefined {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`INVALID_${fieldName.toUpperCase()}`);
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`INVALID_${fieldName.toUpperCase()}`);
+  }
+
+  return parsed;
+}
+
 /*
 |--------------------------------------------------------------------------
 | GET /api/payslips
@@ -59,16 +80,106 @@ export async function index(
   res: Response
 ) {
   try {
-    const payslips =
-      await getAllPayslips();
+    const page = parsePositiveInteger(req.query.page, "page");
+    const limit = parsePositiveInteger(req.query.limit, "limit");
+
+    if (limit !== undefined && limit > 100) {
+      return errorResponse(res, 400, "Limit cannot exceed 100");
+    }
+
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : undefined;
+
+    const status =
+      typeof req.query.status === "string"
+        ? req.query.status
+        : undefined;
+
+    if (status && !["draft", "published"].includes(status)) {
+      return errorResponse(res, 400, "Invalid payslip status");
+    }
+
+    const month = parsePositiveInteger(req.query.month, "month");
+
+    if (month !== undefined && (month < 1 || month > 12)) {
+      return errorResponse(res, 400, "Month must be between 1 and 12");
+    }
+
+    const year = parsePositiveInteger(req.query.year, "year");
+
+    if (year !== undefined && (year < 2000 || year > 2100)) {
+      return errorResponse(res, 400, "Year is invalid");
+    }
+
+    const result = await getAllPayslips({
+      ...(page !== undefined && { page }),
+      ...(limit !== undefined && { limit }),
+      ...(search && { search }),
+      ...(status && { status }),
+      ...(month !== undefined && { month }),
+      ...(year !== undefined && { year }),
+    });
+
+    const totalPages = result.paginationEnabled
+      ? Math.ceil(result.total / result.limit)
+      : result.total > 0
+        ? 1
+        : 0;
 
     return successResponse(
       res,
       200,
       "Payslips retrieved successfully",
-      serializeBigInt(payslips)
+      serializeBigInt(result.payslips),
+      {
+        page: result.paginationEnabled ? result.page : 1,
+        limit: result.paginationEnabled ? result.limit : result.total,
+        total: result.total,
+        totalPages,
+        hasNextPage:
+          result.paginationEnabled && result.page < totalPages,
+        hasPreviousPage:
+          result.paginationEnabled && result.page > 1,
+        summary: result.summary,
+      }
     );
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "INVALID_PAGE") {
+        return errorResponse(
+          res,
+          400,
+          "Page must be a positive integer"
+        );
+      }
+
+      if (error.message === "INVALID_LIMIT") {
+        return errorResponse(
+          res,
+          400,
+          "Limit must be a positive integer"
+        );
+      }
+
+      if (error.message === "INVALID_MONTH") {
+        return errorResponse(
+          res,
+          400,
+          "Month must be a positive integer"
+        );
+      }
+
+      if (error.message === "INVALID_YEAR") {
+        return errorResponse(
+          res,
+          400,
+          "Year must be a positive integer"
+        );
+      }
+    }
+
     console.error(
       "Get payslips error:",
       error
