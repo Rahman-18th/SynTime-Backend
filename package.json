@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "seed": "tsx prisma/seed.ts",
-    "seed:rbac": "tsx prisma/seed-rbac.ts"
+    "seed:rbac": "tsx prisma/seed-rbac.ts",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate"
   },
   "keywords": [],
   "author": "",

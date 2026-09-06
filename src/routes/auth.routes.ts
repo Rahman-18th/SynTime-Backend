@@ -12,10 +12,6 @@ import {
 } from "../middleware/auth.middleware.js";
 
 import {
-  authorizeRoles,
-} from "../middleware/role.middleware.js";
-
-import {
   loginRateLimiter,
 } from "../middleware/rate-limit.middleware.js";
 
@@ -59,33 +55,6 @@ router.get(
           user:
             req.user,
         },
-      });
-  }
-);
-
-/*
-|--------------------------------------------------------------------------
-| Development/Test endpoint
-|--------------------------------------------------------------------------
-*/
-
-router.get(
-  "/admin-test",
-  authenticateToken,
-  authorizeRoles(
-    "admin"
-  ),
-  (
-    req: AuthRequest,
-    res
-  ) => {
-    return res
-      .status(200)
-      .json({
-        success: true,
-
-        message:
-          "Admin access granted",
       });
   }
 );
