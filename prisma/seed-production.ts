@@ -4,10 +4,13 @@ import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString =
+  process.env.DATABASE_URL;
 
 if (!connectionString) {
-  throw new Error("DATABASE_URL is not configured");
+  throw new Error(
+    "DATABASE_URL is not configured"
+  );
 }
 
 const adapter = new PrismaPg({
@@ -19,49 +22,112 @@ const prisma = new PrismaClient({
 });
 
 const permissions = [
-  ["dashboard.view", "View admin dashboard"],
+  [
+    "dashboard.view",
+    "View admin dashboard",
+  ],
 
-  ["employees.view", "View employees"],
-  ["employees.create", "Create employees"],
-  ["employees.update", "Update employees"],
+  [
+    "employees.view",
+    "View employees",
+  ],
+  [
+    "employees.create",
+    "Create employees",
+  ],
+  [
+    "employees.update",
+    "Update employees",
+  ],
   [
     "employees.manage_account",
     "Manage employee user accounts",
   ],
 
-  ["attendance.view", "View attendance records"],
+  [
+    "attendance.view",
+    "View attendance records",
+  ],
 
-  ["requests.view", "View employee requests"],
+  [
+    "requests.view",
+    "View employee requests",
+  ],
   [
     "requests.review",
     "Approve or reject employee requests",
   ],
 
-  ["payslips.view", "View payslips"],
-  ["payslips.create", "Create payslips"],
-  ["payslips.update", "Update payslips"],
+  [
+    "payslips.view",
+    "View payslips",
+  ],
+  [
+    "payslips.create",
+    "Create payslips",
+  ],
+  [
+    "payslips.update",
+    "Update payslips",
+  ],
 
-  ["announcements.view", "View announcements"],
-  ["announcements.create", "Create announcements"],
-  ["announcements.update", "Update announcements"],
+  [
+    "announcements.view",
+    "View announcements",
+  ],
+  [
+    "announcements.create",
+    "Create announcements",
+  ],
+  [
+    "announcements.update",
+    "Update announcements",
+  ],
 
-  ["notifications.view", "View notifications"],
+  [
+    "notifications.view",
+    "View notifications",
+  ],
   [
     "notifications.create",
     "Send manual notifications",
   ],
 
-  ["master_data.view", "View master data"],
-  ["master_data.create", "Create master data"],
-  ["master_data.update", "Update master data"],
+  [
+    "master_data.view",
+    "View master data",
+  ],
+  [
+    "master_data.create",
+    "Create master data",
+  ],
+  [
+    "master_data.update",
+    "Update master data",
+  ],
 
-  ["settings.view", "View system settings"],
-  ["settings.update", "Update system settings"],
+  [
+    "settings.view",
+    "View system settings",
+  ],
+  [
+    "settings.update",
+    "Update system settings",
+  ],
 
-  ["rbac.view", "View roles and permissions"],
-  ["rbac.manage", "Manage roles and permissions"],
+  [
+    "rbac.view",
+    "View roles and permissions",
+  ],
+  [
+    "rbac.manage",
+    "Manage roles and permissions",
+  ],
 
-  ["audit_logs.view", "View system audit logs"],
+  [
+    "audit_logs.view",
+    "View system audit logs",
+  ],
 ] as const;
 
 async function main() {
@@ -75,48 +141,83 @@ async function main() {
 
   if (!adminEmail) {
     throw new Error(
-      "BOOTSTRAP_ADMIN_EMAIL is not configured",
+      "BOOTSTRAP_ADMIN_EMAIL is not configured"
     );
   }
 
   if (!adminPassword) {
     throw new Error(
-      "BOOTSTRAP_ADMIN_PASSWORD is not configured",
+      "BOOTSTRAP_ADMIN_PASSWORD is not configured"
     );
   }
 
   if (adminPassword.length < 12) {
     throw new Error(
-      "BOOTSTRAP_ADMIN_PASSWORD must be at least 12 characters",
+      "BOOTSTRAP_ADMIN_PASSWORD must be at least 12 characters"
     );
   }
 
-  console.log("Starting production bootstrap...");
+  console.log(
+    "Starting production bootstrap..."
+  );
 
-  // =========================================
-  // ADMIN ROLE
-  // =========================================
+  /*
+  |--------------------------------------------------------------------------
+  | Core Roles
+  |--------------------------------------------------------------------------
+  */
 
-  const adminRole = await prisma.role.upsert({
+  const adminRole =
+    await prisma.role.upsert({
+      where: {
+        name: "admin",
+      },
+      update: {
+        description:
+          "SynTime administrator",
+      },
+      create: {
+        name: "admin",
+        description:
+          "SynTime administrator",
+      },
+    });
+
+  console.log(
+    "Admin role ready."
+  );
+
+  await prisma.role.upsert({
     where: {
-      name: "admin",
+      name: "employee",
     },
     update: {
-      description: "SynTime administrator",
+      description:
+        "SynTime employee",
     },
     create: {
-      name: "admin",
-      description: "SynTime administrator",
+      name: "employee",
+      description:
+        "SynTime employee",
     },
   });
 
-  console.log("Admin role ready.");
+  console.log(
+    "Employee role ready."
+  );
 
-  // =========================================
-  // PERMISSIONS
-  // =========================================
+  /*
+  |--------------------------------------------------------------------------
+  | Permissions
+  |--------------------------------------------------------------------------
+  */
 
-  for (const [name, description] of permissions) {
+  for (
+    const [
+      name,
+      description,
+    ] of permissions
+  ) {
     const permission =
       await prisma.permission.upsert({
         where: {
@@ -134,107 +235,165 @@ async function main() {
     await prisma.rolePermission.upsert({
       where: {
         roleId_permissionId: {
-          roleId: adminRole.id,
-          permissionId: permission.id,
+          roleId:
+            adminRole.id,
+          permissionId:
+            permission.id,
         },
       },
       update: {},
       create: {
-        roleId: adminRole.id,
-        permissionId: permission.id,
+        roleId:
+          adminRole.id,
+        permissionId:
+          permission.id,
       },
     });
   }
 
-  console.log("Admin permissions ready.");
+  console.log(
+    "Admin permissions ready."
+  );
 
-  // =========================================
-  // INITIAL ADMIN USER
-  // =========================================
+  /*
+  |--------------------------------------------------------------------------
+  | Initial Admin User
+  |--------------------------------------------------------------------------
+  */
 
   const existingAdmin =
     await prisma.user.findUnique({
       where: {
-        email: adminEmail,
+        email:
+          adminEmail,
       },
     });
 
-  const adminUser = existingAdmin
-    ? await prisma.user.update({
-        where: {
-          id: existingAdmin.id,
-        },
-        data: {
-          isActive: true,
-        },
-      })
-    : await prisma.user.create({
-        data: {
-          email: adminEmail,
-          passwordHash: await bcrypt.hash(
-            adminPassword,
-            12,
-          ),
-          isActive: true,
-        },
-      });
+  const adminUser =
+    existingAdmin
+      ? await prisma.user.update({
+          where: {
+            id:
+              existingAdmin.id,
+          },
+          data: {
+            isActive:
+              true,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            email:
+              adminEmail,
+
+            passwordHash:
+              await bcrypt.hash(
+                adminPassword,
+                12
+              ),
+
+            isActive:
+              true,
+          },
+        });
 
   if (existingAdmin) {
     console.log(
-      "Existing admin found. Password was not changed.",
+      "Existing admin found. Password was not changed."
     );
   } else {
-    console.log("Initial admin account created.");
+    console.log(
+      "Initial admin account created."
+    );
   }
 
-  // =========================================
-  // ASSIGN ADMIN ROLE
-  // =========================================
+  /*
+  |--------------------------------------------------------------------------
+  | Assign Admin Role
+  |--------------------------------------------------------------------------
+  */
 
   await prisma.userRole.upsert({
     where: {
       userId_roleId: {
-        userId: adminUser.id,
-        roleId: adminRole.id,
+        userId:
+          adminUser.id,
+        roleId:
+          adminRole.id,
       },
     },
     update: {},
     create: {
-      userId: adminUser.id,
-      roleId: adminRole.id,
+      userId:
+        adminUser.id,
+      roleId:
+        adminRole.id,
     },
   });
 
-  // =========================================
-  // FINAL VALIDATION
-  // =========================================
+  /*
+  |--------------------------------------------------------------------------
+  | Final Validation
+  |--------------------------------------------------------------------------
+  */
 
   const adminPermissionCount =
     await prisma.rolePermission.count({
       where: {
-        roleId: adminRole.id,
+        roleId:
+          adminRole.id,
       },
     });
 
+  const employeeRole =
+    await prisma.role.findUnique({
+      where: {
+        name: "employee",
+      },
+    });
+
+  if (!employeeRole) {
+    throw new Error(
+      "Employee role bootstrap validation failed"
+    );
+  }
+
   console.log("");
-  console.log("==============================");
-  console.log("Production bootstrap completed");
-  console.log("==============================");
-  console.log(`Admin email: ${adminUser.email}`);
   console.log(
-    `Admin permissions: ${adminPermissionCount}`,
+    "=============================="
+  );
+  console.log(
+    "Production bootstrap completed"
+  );
+  console.log(
+    "=============================="
+  );
+
+  console.log(
+    `Admin email: ${adminUser.email}`
+  );
+
+  console.log(
+    `Admin permissions: ${adminPermissionCount}`
+  );
+
+  console.log(
+    `Employee role: ${employeeRole.name}`
   );
 }
 
 main()
   .catch((error) => {
     console.error(
-      "Production bootstrap failed:",
+      "Production bootstrap failed:"
     );
 
-    console.error(error);
+    console.error(
+      error
+    );
 
-    process.exitCode = 1;
+    process.exitCode =
+      1;
   })
   .finally(async () => {
     await prisma.$disconnect();
