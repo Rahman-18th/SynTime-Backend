@@ -45,6 +45,66 @@ function parseId(
   }
 }
 
+function parseReferenceId(
+  value: unknown
+): bigint {
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number"
+  ) {
+    throw new Error("INVALID_REFERENCE_ID");
+  }
+
+  try {
+    const id = BigInt(value);
+
+    if (id <= 0n) {
+      throw new Error();
+    }
+
+    return id;
+  } catch {
+    throw new Error("INVALID_REFERENCE_ID");
+  }
+}
+
+function parseWorkDate(
+  value: unknown
+): Date {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value)
+  ) {
+    throw new Error("INVALID_WORK_DATE");
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] = value
+    .split("-")
+    .map(Number) as [number, number, number];
+
+  const date = new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    )
+  );
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw new Error("INVALID_WORK_DATE");
+  }
+
+  return date;
+}
+
 function handleInvalidScheduleId(
   error: unknown,
   res: Response
@@ -215,16 +275,16 @@ export async function store(
     const schedule =
       await createSchedule({
         employeeId:
-          BigInt(employeeId),
+          parseReferenceId(employeeId),
 
         shiftId:
-          BigInt(shiftId),
+          parseReferenceId(shiftId),
 
         officeId:
-          BigInt(officeId),
+          parseReferenceId(officeId),
 
         workDate:
-          new Date(workDate),
+          parseWorkDate(workDate),
 
         ...(status !== undefined && {
           status,
@@ -238,6 +298,52 @@ export async function store(
       serializeBigInt(schedule)
     );
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_REFERENCE_ID"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid employee, shift, or office ID"
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_WORK_DATE"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid work date. Use YYYY-MM-DD"
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "INVALID_SCHEDULE_REFERENCE"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Employee, shift, or office does not exist"
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "SCHEDULE_COMPANY_MISMATCH"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Employee, shift, and office must belong to the same company"
+      );
+    }
+
     if (isPrismaKnownError(error)) {
       if (error.code === "P2002") {
         return errorResponse(
@@ -321,22 +427,22 @@ export async function update(
     const scheduleData = {
       ...(employeeId !== undefined && {
         employeeId:
-          BigInt(employeeId),
+          parseReferenceId(employeeId),
       }),
 
       ...(shiftId !== undefined && {
         shiftId:
-          BigInt(shiftId),
+          parseReferenceId(shiftId),
       }),
 
       ...(officeId !== undefined && {
         officeId:
-          BigInt(officeId),
+          parseReferenceId(officeId),
       }),
 
       ...(workDate !== undefined && {
         workDate:
-          new Date(workDate),
+          parseWorkDate(workDate),
       }),
 
       ...(status !== undefined && {
@@ -374,6 +480,64 @@ export async function update(
       )
     ) {
       return;
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_REFERENCE_ID"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid employee, shift, or office ID"
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_WORK_DATE"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid work date. Use YYYY-MM-DD"
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "INVALID_SCHEDULE_REFERENCE"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Employee, shift, or office does not exist"
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "SCHEDULE_COMPANY_MISMATCH"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Employee, shift, and office must belong to the same company"
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message ===
+        "SCHEDULE_NOT_FOUND"
+    ) {
+      return errorResponse(
+        res,
+        404,
+        "Schedule not found"
+      );
     }
 
     if (isPrismaKnownError(error)) {
