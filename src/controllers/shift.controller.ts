@@ -46,10 +46,42 @@ function parseId(
   }
 }
 
-function timeToDate(time: string): Date {
-  return new Date(`1970-01-01T${time}:00`);
-}
+function timeToDate(
+  time: unknown
+): Date {
+  if (typeof time !== "string") {
+    throw new Error("INVALID_TIME");
+  }
 
+  const match =
+    time.match(
+      /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
+    );
+
+  if (!match) {
+    throw new Error("INVALID_TIME");
+  }
+
+  const hours =
+    Number(match[1]);
+
+  const minutes =
+    Number(match[2]);
+
+  const seconds =
+    Number(match[3] ?? 0);
+
+  return new Date(
+    Date.UTC(
+      1970,
+      0,
+      1,
+      hours,
+      minutes,
+      seconds
+    )
+  );
+}
 function handleInvalidShiftId(
   error: unknown,
   res: Response
@@ -210,6 +242,17 @@ export async function store(
       serializeBigInt(shift)
     );
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_TIME"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid time format. Use HH:mm or HH:mm:ss"
+      );
+    }
+
     if (isPrismaKnownError(error)) {
       if (error.code === "P2002") {
         return errorResponse(
@@ -314,6 +357,17 @@ export async function update(
   } catch (error) {
     if (handleInvalidShiftId(error, res)) {
       return;
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "INVALID_TIME"
+    ) {
+      return errorResponse(
+        res,
+        400,
+        "Invalid time format. Use HH:mm or HH:mm:ss"
+      );
     }
 
     if (isPrismaKnownError(error)) {
